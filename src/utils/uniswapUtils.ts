@@ -45,7 +45,7 @@ export const liquidityToTokenAmounts = (
 
 export const fromRawTokenAmount = (
   amount: bigint,
-  tokenDecimals: number
+  tokenDecimals: number = 18
 ): number => {
   // Convert the raw value to a human-readable format using token decimals
   const tokenValue = new Fraction(
@@ -53,6 +53,14 @@ export const fromRawTokenAmount = (
     JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(tokenDecimals)).toString()
   );
   return Number(tokenValue.toFixed(tokenDecimals));
+};
+
+export const toRawTokenAmount = (
+  amount: number,
+  tokenDecimals: number = 18
+): bigint => {
+  const scale = Math.pow(10, tokenDecimals); // Scale factor (10^decimals)
+  return BigInt(Math.floor(amount * scale)); // Multiply and convert to bigint
 };
 
 /**
