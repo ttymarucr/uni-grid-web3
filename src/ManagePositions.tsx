@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import {
-  getAccount,
-  readContract,
-  writeContract,
-  // connect,
-  // disconnect,
-  multicall,
-  simulateContract,
-} from "@wagmi/core";
+import { writeContract, multicall, simulateContract } from "@wagmi/core";
 import { ToastContainer, toast } from "react-toastify";
 import {
   Chart as ChartJS,
@@ -25,6 +17,7 @@ import {
   useDisconnect,
   useAppKitAccount,
 } from "@reown/appkit/react";
+import { useForm } from "react-hook-form";
 
 import {
   GridPositionManagerABI,
@@ -40,6 +33,7 @@ import {
   liquidityToTokenAmounts,
   tickToPrice,
 } from "./utils/uniswapUtils";
+import Collapse from "./components/collapse/Collapse";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -61,23 +55,57 @@ const ManagePositions: React.FC = () => {
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
 
+  const {
+    register: registerDeposit,
+    handleSubmit: handleSubmitDeposit,
+    reset: resetDeposit,
+  } = useForm();
+  const {
+    register: registerCompound,
+    handleSubmit: handleSubmitCompound,
+    reset: resetCompound,
+  } = useForm();
+  const {
+    register: registerSweep,
+    handleSubmit: handleSubmitSweep,
+    reset: resetSweep,
+  } = useForm();
+  const {
+    register: registerMinFees,
+    handleSubmit: handleSubmitMinFees,
+    reset: resetMinFees,
+  } = useForm();
+  const {
+    register: registerGridQuantity,
+    handleSubmit: handleSubmitGridQuantity,
+    reset: resetGridQuantity,
+  } = useForm();
+  const {
+    register: registerGridStep,
+    handleSubmit: handleSubmitGridStep,
+    reset: resetGridStep,
+  } = useForm();
+
   const fetchPositions = useCallback(async () => {
     if (isConnected && address && contractAddress) {
       try {
-        const [activeIndexes, poolAddress] = await multicall(config, {
-          contracts: [
-            {
-              address: contractAddress as `0x${string}`,
-              abi: GridPositionManagerABI,
-              functionName: "getActivePositionIndexes",
-            },
-            {
-              address: contractAddress as `0x${string}`,
-              abi: GridPositionManagerABI,
-              functionName: "getPool",
-            },
-          ],
-        });
+        const [activeIndexes, poolAddress, totalPositions] = await multicall(
+          config,
+          {
+            contracts: [
+              {
+                address: contractAddress as `0x${string}`,
+                abi: GridPositionManagerABI,
+                functionName: "getActivePositionIndexes",
+              },
+              {
+                address: contractAddress as `0x${string}`,
+                abi: GridPositionManagerABI,
+                functionName: "getPool",
+              },
+            ],
+          }
+        );
 
         if (activeIndexes.status == "success") {
           const positionResults = await multicall(config, {
@@ -244,7 +272,7 @@ const ManagePositions: React.FC = () => {
     }
   }, [address, isConnected, contractAddress]);
 
-  const priceInPositionIndex = useCallback(() => {
+  const inRangePositionIndex = useCallback(() => {
     if (pool) {
       const positionIndex = positions.reduce(
         (closestIndex, position, index) => {
@@ -261,7 +289,29 @@ const ManagePositions: React.FC = () => {
         ? positionIndex
         : null;
     }
+    return null;
   }, [pool, positions]);
+
+  const liquidity = useCallback(
+    () =>
+      positions
+        .reduce((sum, position) => sum + position.liquidityToken1, 0)
+        .toFixed(2),
+    [positions]
+  );
+
+  const totalFeesInToken1 = useCallback(() => {
+    if (!pool) return "0.00";
+
+    return positions
+      .reduce((sum, position) => {
+        const feesToken0InToken1 =
+          Number(position.feesToken0) *
+          tickToPrice(pool.tick, pool.token0.decimals, pool.token1.decimals)[0];
+        return sum + feesToken0InToken1 + Number(position.feesToken1);
+      }, 0)
+      .toFixed(2);
+  }, [positions, pool]);
 
   const handleContractAction = async (
     functionName:
@@ -383,7 +433,7 @@ const ManagePositions: React.FC = () => {
           currentTickLine: {
             type: "line",
             scaleID: "x",
-            value: priceInPositionIndex,
+            value: inRangePositionIndex,
             borderColor: "red",
             borderWidth: 2,
             label: {
@@ -415,90 +465,43 @@ const ManagePositions: React.FC = () => {
       },
     },
   };
-
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Manage Positions</h1>
-      <h3 className="text-lg font-semibold mb-4">{contractAddress}</h3>
-      {isConnected ? (
-        <>
-          <p className="mb-2">Connected Account: {address}</p>
-          <button
-            onClick={() => disconnect()}
-            className="bg-red-500 text-white px-4 py-2 rounded mb-4"
-          >
-            Disconnect
-          </button>
-        </>
-      ) : (
-        <button
-          onClick={() => open({ view: "Connect", namespace: "eip155" })}
-          className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
-        >
-          Connect Wallet
-        </button>
-      )}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button
-          onClick={fetchPositions}
-          className="bg-green-500 text-white px-4 py-2 rounded"
-        >
-          Fetch Positions
-        </button>
-        <button
-          onClick={() => handleDeposit(BigInt(1000), BigInt(1000), BigInt(100))}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Deposit
-        </button>
-        <button
-          onClick={handleWithdraw}
-          className="bg-yellow-500 text-white px-4 py-2 rounded"
-        >
-          Withdraw
-        </button>
-        <button
-          onClick={() => handleCompound(BigInt(100))}
-          className="bg-purple-500 text-white px-4 py-2 rounded"
-        >
-          Compound
-        </button>
-        <button
-          onClick={() => handleSweep(BigInt(100))}
-          className="bg-indigo-500 text-white px-4 py-2 rounded"
-        >
-          Sweep
-        </button>
-        <button
-          onClick={handleClose}
-          className="bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Close
-        </button>
-        <button
-          onClick={handleEmergencyWithdraw}
-          className="bg-gray-500 text-white px-4 py-2 rounded"
-        >
-          Emergency Withdraw
-        </button>
-        <button
-          onClick={() => handleSetMinFees(BigInt(10), BigInt(10))}
-          className="bg-teal-500 text-white px-4 py-2 rounded"
-        >
-          Set Min Fees
-        </button>
-        <button
-          onClick={() => handleSetGridQuantity(BigInt(10))}
-          className="bg-orange-500 text-white px-4 py-2 rounded"
-        >
-          Set Grid Quantity
-        </button>
-        <button
-          onClick={() => handleSetGridStep(BigInt(5))}
-          className="bg-pink-500 text-white px-4 py-2 rounded"
-        >
-          Set Grid Step
-        </button>
+    <div className="m-20">
+      <div className="grid grid-flow-col justify-items-stretch gap-4 text-lg font-semibold">
+        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">{`${contractAddress?.slice(
+          0,
+          6
+        )}...${contractAddress?.slice(-4)}`}</div>
+        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
+          Active Positions {positions.length}
+        </div>
+        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
+          {inRangePositionIndex() ? "In Range" : "Not In Range"}
+        </div>
+        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
+          Liquidity {liquidity()}
+        </div>
+        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
+          Total Fees {totalFeesInToken1()}
+        </div>
+        <div className="rounded flex justify-center items-center">
+          {isConnected ? (
+            <button
+              onClick={() => disconnect()}
+              className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded mb-4"
+            >
+              {`${address?.slice(0, 6)}...${address?.slice(-4)} `}
+              Disconnect
+            </button>
+          ) : (
+            <button
+              onClick={() => open({ view: "Connect", namespace: "eip155" })}
+              className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
+            >
+              Connect Wallet
+            </button>
+          )}
+        </div>
       </div>
       <div className="mb-4">
         {pool ? (
@@ -526,9 +529,169 @@ const ManagePositions: React.FC = () => {
           <p>No pool information available.</p>
         )}
       </div>
-      <div className="w-full h-96 mb-4">
+      <div className="w-full h-96 mb-4 grid grid-flow-col justify-items-center">
         <Bar data={chartData} options={chartOptions} />
       </div>
+      <Collapse title="Actions">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          <form
+            onSubmit={handleSubmitDeposit((data) => {
+              handleDeposit(
+                BigInt(data.token0Amount),
+                BigInt(data.token1Amount),
+                BigInt(data.slippage)
+              );
+              resetDeposit();
+            })}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-4">Deposit</h3>
+            <input
+              {...registerDeposit("token0Amount")}
+              type="number"
+              placeholder="Token0 Amount"
+              className="w-full border border-gray-300 rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              {...registerDeposit("token1Amount")}
+              type="number"
+              placeholder="Token1 Amount"
+              className="w-full border border-gray-300 rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              {...registerDeposit("slippage")}
+              type="number"
+              placeholder="Slippage"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+            >
+              Deposit
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleSubmitCompound((data) => {
+              handleCompound(BigInt(data.slippage));
+              resetCompound();
+            })}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-4">Compound</h3>
+            <input
+              {...registerCompound("slippage")}
+              type="number"
+              placeholder="Slippage"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+            >
+              Compound
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleSubmitSweep((data) => {
+              handleSweep(BigInt(data.slippage));
+              resetSweep();
+            })}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-4">Sweep</h3>
+            <input
+              {...registerSweep("slippage")}
+              type="number"
+              placeholder="Slippage"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+            >
+              Sweep
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleSubmitMinFees((data) => {
+              handleSetMinFees(
+                BigInt(data.token0MinFees),
+                BigInt(data.token1MinFees)
+              );
+              resetMinFees();
+            })}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-4">Set Minimum Fees</h3>
+            <input
+              {...registerMinFees("token0MinFees")}
+              type="number"
+              placeholder="Token0 Min Fees"
+              className="w-full border border-gray-300 rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              {...registerMinFees("token1MinFees")}
+              type="number"
+              placeholder="Token1 Min Fees"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+            >
+              Set Min Fees
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleSubmitGridQuantity((data) => {
+              handleSetGridQuantity(BigInt(data.gridQuantity));
+              resetGridQuantity();
+            })}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-4">Set Grid Quantity</h3>
+            <input
+              {...registerGridQuantity("gridQuantity")}
+              type="number"
+              placeholder="Grid Quantity"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+            >
+              Set Grid Quantity
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleSubmitGridStep((data) => {
+              handleSetGridStep(BigInt(data.gridStep));
+              resetGridStep();
+            })}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-4">Set Grid Step</h3>
+            <input
+              {...registerGridStep("gridStep")}
+              type="number"
+              placeholder="Grid Step"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              type="submit"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+            >
+              Set Grid Step
+            </button>
+          </form>
+        </div>
+      </Collapse>
       <div>
         <div className="grid grid-cols-6 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Position</div>
@@ -548,7 +711,7 @@ const ManagePositions: React.FC = () => {
             <div
               key={index}
               className={`grid grid-cols-6 border-b border-gray-200 py-2 ${
-                isHighlighted ? "bg-yellow-100" : ""
+                isHighlighted ? "green-card" : ""
               }`}
             >
               <div>

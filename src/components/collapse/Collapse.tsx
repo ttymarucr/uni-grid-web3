@@ -1,0 +1,41 @@
+import React, { useState } from "react";
+
+interface CollapseProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+const Collapse: React.FC<CollapseProps> = ({ title, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleCollapse = () => {
+    setIsOpen(!isOpen);
+  };
+
+  return (
+    <div className="rounded-md shadow-md mb-10">
+      <button
+        onClick={toggleCollapse}
+        className="w-full text-left px-4 py-2 green-card rounded-md text-lg font-semibold flex justify-between items-center"
+      >
+        <span>{title}</span>
+        <span
+          className={`transform transition-transform duration-300 ${
+            isOpen ? "rotate-180" : "rotate-0"
+          }`}
+        >
+          ▼
+        </span>
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          isOpen ? "max-h-screen" : "max-h-0"
+        }`}
+      >
+        <div className="p-4">{children}</div>
+      </div>
+    </div>
+  );
+};
+
+export default Collapse;

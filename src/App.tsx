@@ -1,7 +1,6 @@
-import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import ManagePositions from "./ManagePositions";
-import { AppKitProvider } from "./AppkitProvider";
+import { AppKitProvider } from "./components/AppkitProvider";
 
 function App() {
   return (
