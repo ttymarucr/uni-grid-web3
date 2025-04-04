@@ -4,8 +4,8 @@ import {
   getAccount,
   readContract,
   writeContract,
-  connect,
-  disconnect,
+  // connect,
+  // disconnect,
   multicall,
   simulateContract,
 } from "@wagmi/core";
@@ -20,6 +20,11 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
+import {
+  useAppKit,
+  useDisconnect,
+  useAppKitAccount,
+} from "@reown/appkit/react";
 
 import {
   GridPositionManagerABI,
@@ -30,20 +35,31 @@ import {
 import { config } from "./config";
 import { GridPosition, PoolInfo, Position, TokenMetadata } from "./types";
 import { maxUint128 } from "viem";
-import { fromRawTokenAmount, liquidityToTokenAmounts, tickToPrice } from "./utils/uniswapUtils";
+import {
+  fromRawTokenAmount,
+  liquidityToTokenAmounts,
+  tickToPrice,
+} from "./utils/uniswapUtils";
 
 // Register Chart.js components to avoid re-registration issues
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Title, annotationPlugin);
+ChartJS.register(
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Title,
+  annotationPlugin
+);
 
 const ManagePositions: React.FC = () => {
   const NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS =
     "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1";
   const { contractAddress } = useParams<{ contractAddress: `0x${string}` }>();
-  const { address, isConnected } = getAccount(config);
+  const { address, isConnected } = useAppKitAccount();
   const [positions, setPositions] = useState<Position[]>([]);
   const [pool, setPool] = useState<PoolInfo>();
-
-  console.log(address, isConnected, contractAddress);
+  const { open } = useAppKit();
+  const { disconnect } = useDisconnect();
 
   const fetchPositions = useCallback(async () => {
     if (isConnected && address && contractAddress) {
@@ -216,9 +232,10 @@ const ManagePositions: React.FC = () => {
               address: poolAddress.result,
               token0: token0Meta,
               token1: token1Meta,
-              fee: slot0.result?.[5],
+              fee: slot0.result?.[4],
               tick: slot0.result?.[1],
             } as PoolInfo);
+            toast("Positions fetched successfully");
           }
         }
       } catch (error) {
@@ -226,6 +243,25 @@ const ManagePositions: React.FC = () => {
       }
     }
   }, [address, isConnected, contractAddress]);
+
+  const priceInPositionIndex = useCallback(() => {
+    if (pool) {
+      const positionIndex = positions.reduce(
+        (closestIndex, position, index) => {
+          const currentDiff = Math.abs(position.tickLower - pool.tick);
+          const closestDiff = Math.abs(
+            positions[closestIndex].tickLower - pool.tick
+          );
+          return currentDiff < closestDiff ? index : closestIndex;
+        },
+        0
+      );
+      const position = positions[positionIndex];
+      return position.tickLower <= pool.tick && position.tickUpper >= pool.tick
+        ? positionIndex
+        : null;
+    }
+  }, [pool, positions]);
 
   const handleContractAction = async (
     functionName:
@@ -314,9 +350,11 @@ const ManagePositions: React.FC = () => {
   const chartData = {
     labels: positions.map(
       (position) =>
-        `Tick: ${position.tickLower} - ${position.tickUpper} (${position.priceLower.toFixed(
+        `Tick: ${position.tickLower} - ${
+          position.tickUpper
+        } (${position.priceLower.toFixed(2)} - ${position.priceUpper.toFixed(
           2
-        )} - ${position.priceUpper.toFixed(2)})`
+        )})`
     ),
     datasets: [
       {
@@ -337,8 +375,7 @@ const ManagePositions: React.FC = () => {
       },
       tooltip: {
         callbacks: {
-          label: (context: any) =>
-            `Liquidity: ${context.raw.toLocaleString()}`,
+          label: (context: any) => `Liquidity: ${context.raw.toLocaleString()}`,
         },
       },
       annotation: {
@@ -346,19 +383,15 @@ const ManagePositions: React.FC = () => {
           currentTickLine: {
             type: "line",
             scaleID: "x",
-            value: pool
-              ? positions.reduce((closestIndex, position, index) => {
-                  const currentDiff = Math.abs(position.tickLower - pool.tick);
-                  const closestDiff = Math.abs(
-                    positions[closestIndex].tickLower - pool.tick
-                  );
-                  return currentDiff < closestDiff ? index : closestIndex;
-                }, 0)
-              : null,
+            value: priceInPositionIndex,
             borderColor: "red",
             borderWidth: 2,
             label: {
-              content: `"Current Tick ${pool?.tick} (${tickToPrice(pool?.tick, pool?.token0.decimals, pool?.token1.decimals)[0].toFixed(2)})"`,
+              content: `"Current Tick ${pool?.tick} (${tickToPrice(
+                pool?.tick,
+                pool?.token0.decimals,
+                pool?.token1.decimals
+              )[0].toFixed(2)})"`,
               enabled: true,
               position: "end",
             },
@@ -384,63 +417,161 @@ const ManagePositions: React.FC = () => {
   };
 
   return (
-    <div>
-      <h1>Manage Positions</h1>
-      <h3>{contractAddress}</h3>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Manage Positions</h1>
+      <h3 className="text-lg font-semibold mb-4">{contractAddress}</h3>
       {isConnected ? (
         <>
-          <p>Connected Account: {address}</p>
-          <button onClick={() => disconnect(config)}>Disconnect</button>
+          <p className="mb-2">Connected Account: {address}</p>
+          <button
+            onClick={() => disconnect()}
+            className="bg-red-500 text-white px-4 py-2 rounded mb-4"
+          >
+            Disconnect
+          </button>
         </>
       ) : (
         <button
-          onClick={() => connect(config, { connector: config.connectors[0] })}
+          onClick={() => open({ view: "Connect", namespace: "eip155" })}
+          className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
         >
           Connect Wallet
         </button>
       )}
-      <button onClick={fetchPositions}>Fetch Positions</button>
-      <button
-        onClick={() => handleDeposit(BigInt(1000), BigInt(1000), BigInt(100))}
-      >
-        Deposit
-      </button>
-      <button onClick={handleWithdraw}>Withdraw</button>
-      <button onClick={() => handleCompound(BigInt(100))}>Compound</button>
-      <button onClick={() => handleSweep(BigInt(100))}>Sweep</button>
-      <button onClick={handleClose}>Close</button>
-      <button onClick={handleEmergencyWithdraw}>Emergency Withdraw</button>
-      <button onClick={() => handleSetMinFees(BigInt(10), BigInt(10))}>
-        Set Min Fees
-      </button>
-      <button onClick={() => handleSetGridQuantity(BigInt(10))}>
-        Set Grid Quantity
-      </button>
-      <button onClick={() => handleSetGridStep(BigInt(5))}>
-        Set Grid Step
-      </button>
-      <div style={{ width: "100%", height: "400px", marginTop: "20px" }}>
+      <div className="flex flex-wrap gap-2 mb-4">
+        <button
+          onClick={fetchPositions}
+          className="bg-green-500 text-white px-4 py-2 rounded"
+        >
+          Fetch Positions
+        </button>
+        <button
+          onClick={() => handleDeposit(BigInt(1000), BigInt(1000), BigInt(100))}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Deposit
+        </button>
+        <button
+          onClick={handleWithdraw}
+          className="bg-yellow-500 text-white px-4 py-2 rounded"
+        >
+          Withdraw
+        </button>
+        <button
+          onClick={() => handleCompound(BigInt(100))}
+          className="bg-purple-500 text-white px-4 py-2 rounded"
+        >
+          Compound
+        </button>
+        <button
+          onClick={() => handleSweep(BigInt(100))}
+          className="bg-indigo-500 text-white px-4 py-2 rounded"
+        >
+          Sweep
+        </button>
+        <button
+          onClick={handleClose}
+          className="bg-red-500 text-white px-4 py-2 rounded"
+        >
+          Close
+        </button>
+        <button
+          onClick={handleEmergencyWithdraw}
+          className="bg-gray-500 text-white px-4 py-2 rounded"
+        >
+          Emergency Withdraw
+        </button>
+        <button
+          onClick={() => handleSetMinFees(BigInt(10), BigInt(10))}
+          className="bg-teal-500 text-white px-4 py-2 rounded"
+        >
+          Set Min Fees
+        </button>
+        <button
+          onClick={() => handleSetGridQuantity(BigInt(10))}
+          className="bg-orange-500 text-white px-4 py-2 rounded"
+        >
+          Set Grid Quantity
+        </button>
+        <button
+          onClick={() => handleSetGridStep(BigInt(5))}
+          className="bg-pink-500 text-white px-4 py-2 rounded"
+        >
+          Set Grid Step
+        </button>
+      </div>
+      <div className="mb-4">
+        {pool ? (
+          <div>
+            <h2 className="text-xl font-semibold">
+              Pool{" "}
+              <a
+                href={`https://app.uniswap.org/explore/pools/base/${pool.address}`}
+                className="text-blue-500 underline"
+              >
+                ({pool.token0.symbol}/{pool.token1.symbol})
+              </a>{" "}
+              {`${pool.fee / 10 ** 5}%`}
+            </h2>
+            <p>
+              Current Price:{" "}
+              {tickToPrice(
+                pool.tick,
+                pool.token0.decimals,
+                pool.token1.decimals
+              )[0].toFixed(2)}
+            </p>
+          </div>
+        ) : (
+          <p>No pool information available.</p>
+        )}
+      </div>
+      <div className="w-full h-96 mb-4">
         <Bar data={chartData} options={chartOptions} />
       </div>
-      <ul>
+      <div>
+        <div className="grid grid-cols-6 font-bold border-b-2 border-gray-300 pb-2 mb-2">
+          <div>Position</div>
+          <div>Lower Tick (Price)</div>
+          <div>Upper Tick (Price)</div>
+          <div>Liquidity ({pool?.token1.symbol})</div>
+          <div>Fees {pool?.token0.symbol}</div>
+          <div>Fees {pool?.token1.symbol}</div>
+        </div>
         {positions.map((position, index) => {
+          const isHighlighted =
+            pool &&
+            position.tickLower <= pool.tick &&
+            position.tickUpper >= pool.tick;
+
           return (
-            <li key={index}>
-              <p>Position {index + 1}:</p>
-              {/* <p>Token ID: {position.tokenId.toString()}</p> */}
-              <p>
-                Lower Tick: {position.tickLower} (Price: {position.priceLower})
-              </p>
-              <p>
-                Upper Tick: {position.tickUpper} (Price: {position.priceUpper})
-              </p>
-              <p>Liquidity: {position.liquidityToken1.toString()}</p>
-              <p>Fees Token 0: {position.feesToken0.toString()}</p>
-              <p>Fees Token 1: {position.feesToken1.toString()}</p>
-            </li>
+            <div
+              key={index}
+              className={`grid grid-cols-6 border-b border-gray-200 py-2 ${
+                isHighlighted ? "bg-yellow-100" : ""
+              }`}
+            >
+              <div>
+                <a
+                  href={`https://app.uniswap.org/positions/v3/base/${position.tokenId}`}
+                  className="text-blue-500 underline"
+                >
+                  {position.tokenId.toString()}
+                </a>
+              </div>
+              <div>
+                {position.tickLower} ({position.priceLower.toFixed(2)})
+              </div>
+              <div>
+                {position.tickUpper} ({position.priceUpper.toFixed(2)})
+              </div>
+              <div>{position.liquidityToken1.toFixed(2)}</div>
+              <div>{position.feesToken0.toFixed(2)}</div>
+              <div>{position.feesToken1.toFixed(2)}</div>
+            </div>
           );
         })}
-      </ul>
+      </div>
       <ToastContainer />
     </div>
   );
