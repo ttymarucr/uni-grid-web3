@@ -26,4 +26,5 @@ export interface PoolInfo {
   token0: TokenMetadata; // Metadata for token0 in the pool
   token1: TokenMetadata; // Metadata for token1 in the pool
   fee: number; // The fee tier of the pool (uint24 in Solidity)
+  tick: number; // The current tick of the pool (int24 in Solidity)
 }

@@ -19,6 +19,7 @@ import {
   Title,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import annotationPlugin from "chartjs-plugin-annotation";
 
 import {
   GridPositionManagerABI,
@@ -32,7 +33,7 @@ import { maxUint128 } from "viem";
 import { fromRawTokenAmount, liquidityToTokenAmounts, tickToPrice } from "./utils/uniswapUtils";
 
 // Register Chart.js components to avoid re-registration issues
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Title);
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Title, annotationPlugin);
 
 const ManagePositions: React.FC = () => {
   const NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS =
@@ -107,7 +108,6 @@ const ManagePositions: React.FC = () => {
                 },
               ],
             });
-            console.log("Slot0:", slot0);
             const [
               { result: token0Decimals },
               { result: token0Symbol },
@@ -217,6 +217,7 @@ const ManagePositions: React.FC = () => {
               token0: token0Meta,
               token1: token1Meta,
               fee: slot0.result?.[5],
+              tick: slot0.result?.[1],
             } as PoolInfo);
           }
         }
@@ -340,6 +341,30 @@ const ManagePositions: React.FC = () => {
             `Liquidity: ${context.raw.toLocaleString()}`,
         },
       },
+      annotation: {
+        annotations: {
+          currentTickLine: {
+            type: "line",
+            scaleID: "x",
+            value: pool
+              ? positions.reduce((closestIndex, position, index) => {
+                  const currentDiff = Math.abs(position.tickLower - pool.tick);
+                  const closestDiff = Math.abs(
+                    positions[closestIndex].tickLower - pool.tick
+                  );
+                  return currentDiff < closestDiff ? index : closestIndex;
+                }, 0)
+              : null,
+            borderColor: "red",
+            borderWidth: 2,
+            label: {
+              content: `"Current Tick ${pool?.tick} (${tickToPrice(pool?.tick, pool?.token0.decimals, pool?.token1.decimals)[0].toFixed(2)})"`,
+              enabled: true,
+              position: "end",
+            },
+          },
+        },
+      },
     },
     scales: {
       x: {
@@ -409,9 +434,9 @@ const ManagePositions: React.FC = () => {
               <p>
                 Upper Tick: {position.tickUpper} (Price: {position.priceUpper})
               </p>
-              <p>Liquidity: {position.liquidity.toString()}</p>
-              <p>Fee Growth Inside 0: {position.feesToken0.toString()}</p>
-              <p>Fee Growth Inside 1: {position.feesToken1.toString()}</p>
+              <p>Liquidity: {position.liquidityToken1.toString()}</p>
+              <p>Fees Token 0: {position.feesToken0.toString()}</p>
+              <p>Fees Token 1: {position.feesToken1.toString()}</p>
             </li>
           );
         })}
