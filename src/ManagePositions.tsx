@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, JSX } from "react";
 import { useParams } from "react-router-dom";
 import {
   writeContract,
@@ -50,6 +50,37 @@ ChartJS.register(
   Title,
   annotationPlugin
 );
+
+/**
+ * Formats a number into the desired format: "0.0<sub>n</sub>rest"
+ * for leading zeroes grater than 3.
+ * @param value The number to format (e.g., 0.000008252987500408).
+ * @returns A JSX element with the formatted value.
+ */
+function formatValue(value: number, decimals: number=18): JSX.Element {
+  const valueStr = value.toFixed(decimals); // Convert the number to a string
+  const parts = valueStr.split("."); // Split into integer and fractional parts
+
+  if (parts.length < 2) {
+    return <span>{valueStr}</span>; // If no fractional part, return as is
+  }
+
+  const fractionalPart = parts[1];
+  const leadingZeros = fractionalPart.match(/^0+/)?.[0]?.length || 0; // Count leading zeros
+  if (4 > leadingZeros) {
+    return <span>{valueStr}</span>; // Less than 3 leading zeros, return as is
+  } else if (leadingZeros === decimals) {
+    return <span>0</span>
+  }
+  const significantDigits = fractionalPart.slice(leadingZeros); // Get the rest of the digits
+
+  return (
+    <span>
+      0.0<sub className="text-green">{leadingZeros}</sub>
+      {significantDigits}
+    </span>
+  );
+}
 
 const ManagePositions: React.FC = () => {
   const NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS =
@@ -475,6 +506,17 @@ const ManagePositions: React.FC = () => {
   useEffect(() => {
     fetchPositions();
   }, [isConnected, address, fetchPositions]);
+
+  useEffect(() => {
+    if(gridState) {
+      resetGridQuantity({
+        gridQuantity: gridState.gridQuantity.toString(),
+      });
+      resetGridStep({
+        gridStep: gridState.gridStep.toString(),
+      });
+    }
+  }, [gridState, resetGridQuantity, resetGridStep]);
 
   const chartData = {
     labels: positions.map(
@@ -952,8 +994,8 @@ const ManagePositions: React.FC = () => {
                 {position.tickUpper} ({position.priceUpper.toFixed(2)})
               </div>
               <div>{position.liquidityToken1.toFixed(2)}</div>
-              <div>{position.feesToken0.toFixed(2)}</div>
-              <div>{position.feesToken1.toFixed(2)}</div>
+              <div>{formatValue(position.feesToken0, pool?.token0.decimals)}</div>
+              <div>{formatValue(position.feesToken1, pool?.token1.decimals)}</div>
             </div>
           );
         })}
