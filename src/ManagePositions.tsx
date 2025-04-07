@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, JSX } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   writeContract,
   multicall,
@@ -17,12 +17,8 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
-import {
-  useAppKit,
-  useDisconnect,
-  useAppKitAccount,
-} from "@reown/appkit/react";
-import { set, useForm } from "react-hook-form";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { useForm } from "react-hook-form";
 
 import {
   GridPositionManagerABI,
@@ -57,7 +53,7 @@ ChartJS.register(
  * @param value The number to format (e.g., 0.000008252987500408).
  * @returns A JSX element with the formatted value.
  */
-function formatValue(value: number, decimals: number=18): JSX.Element {
+function formatValue(value: number, decimals: number = 18): JSX.Element {
   const valueStr = value.toFixed(decimals); // Convert the number to a string
   const parts = valueStr.split("."); // Split into integer and fractional parts
 
@@ -70,7 +66,7 @@ function formatValue(value: number, decimals: number=18): JSX.Element {
   if (4 > leadingZeros) {
     return <span>{valueStr}</span>; // Less than 3 leading zeros, return as is
   } else if (leadingZeros === decimals) {
-    return <span>0</span>
+    return <span>0</span>;
   }
   const significantDigits = fractionalPart.slice(leadingZeros); // Get the rest of the digits
 
@@ -95,8 +91,6 @@ const ManagePositions: React.FC = () => {
     gridQuantity: bigint;
   }>();
   const [pool, setPool] = useState<PoolInfo>();
-  const { open } = useAppKit();
-  const { disconnect } = useDisconnect();
 
   const {
     register: registerDeposit,
@@ -378,7 +372,7 @@ const ManagePositions: React.FC = () => {
         0
       );
       const position = positions[positionIndex];
-      return position.tickLower <= pool.tick && position.tickUpper >= pool.tick
+      return position?.tickLower <= pool.tick && position.tickUpper >= pool.tick
         ? positionIndex
         : null;
     }
@@ -445,7 +439,8 @@ const ManagePositions: React.FC = () => {
   const handleDeposit = async (
     token0Amount: number,
     token1Amount: number,
-    slippage: number
+    slippage: number,
+    gridType: number
   ) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
@@ -455,27 +450,31 @@ const ManagePositions: React.FC = () => {
       toRawTokenAmount(token0Amount, pool?.token0.decimals),
       toRawTokenAmount(token1Amount, pool?.token1.decimals),
       slippage * 100,
+      gridType,
     ]);
+    resetDeposit();
   };
 
   const handleWithdraw = async () => {
     await handleContractAction("withdraw");
   };
 
-  const handleCompound = async (slippage: number) => {
+  const handleCompound = async (slippage: number, gridType: number) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
     }
-    await handleContractAction("compound", [slippage * 100]);
+    await handleContractAction("compound", [slippage * 100, gridType]);
+    resetCompound();
   };
 
-  const handleSweep = async (slippage: number) => {
+  const handleSweep = async (slippage: number, gridType: number) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
     }
-    await handleContractAction("sweep", [slippage * 100]);
+    await handleContractAction("sweep", [slippage * 100, gridType]);
+    resetSweep();
   };
 
   const handleClose = async () => {
@@ -491,16 +490,20 @@ const ManagePositions: React.FC = () => {
     token1MinFees: number
   ) => {
     await handleContractAction("setMinFees", [
-      toRawTokenAmount(token0MinFees, pool?.token0.decimals), 
-      toRawTokenAmount(token1MinFees, pool?.token1.decimals)]);
+      toRawTokenAmount(token0MinFees, pool?.token0.decimals),
+      toRawTokenAmount(token1MinFees, pool?.token1.decimals),
+    ]);
+    resetMinFees();
   };
 
   const handleSetGridQuantity = async (gridQuantity: bigint) => {
     await handleContractAction("setGridQuantity", [gridQuantity]);
+    resetGridQuantity();
   };
 
   const handleSetGridStep = async (gridStep: bigint) => {
     await handleContractAction("setGridStep", [gridStep]);
+    resetGridStep();
   };
 
   useEffect(() => {
@@ -508,7 +511,7 @@ const ManagePositions: React.FC = () => {
   }, [isConnected, address, fetchPositions]);
 
   useEffect(() => {
-    if(gridState) {
+    if (gridState) {
       resetGridQuantity({
         gridQuantity: gridState.gridQuantity.toString(),
       });
@@ -587,8 +590,13 @@ const ManagePositions: React.FC = () => {
     },
   };
   return (
-    <div className="m-20">
+    <div className="m-10">
       <div className="grid grid-flow-col justify-items-stretch gap-4 text-lg font-semibold">
+        <Link to="/">
+          <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
+            &#12296;
+          </div>
+        </Link>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">{`${contractAddress?.slice(
           0,
           6
@@ -609,24 +617,6 @@ const ManagePositions: React.FC = () => {
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
           Total Fees {totalFeesInToken1()}
         </div>
-        <div className="rounded flex justify-center items-center">
-          {isConnected ? (
-            <button
-              onClick={() => disconnect()}
-              className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded mb-4"
-            >
-              {`${address?.slice(0, 6)}...${address?.slice(-4)} `}
-              Disconnect
-            </button>
-          ) : (
-            <button
-              onClick={() => open({ view: "Connect", namespace: "eip155" })}
-              className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
-            >
-              Connect Wallet
-            </button>
-          )}
-        </div>
       </div>
       <div className="mb-4">
         {pool ? (
@@ -635,6 +625,8 @@ const ManagePositions: React.FC = () => {
               Pool{" "}
               <a
                 href={`https://app.uniswap.org/explore/pools/base/${pool.address}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-blue-500 underline"
               >
                 ({pool.token0.symbol}/{pool.token1.symbol})
@@ -664,16 +656,16 @@ const ManagePositions: React.FC = () => {
               handleDeposit(
                 data.token0Amount,
                 data.token1Amount,
-                data.slippage
+                data.slippage,
+                Number(data.gridType)
               );
-              resetDeposit();
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
             <h3 className="font-semibold text-lg mb-2">Deposit</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Add liquidity to the grid positions by specifying token amounts
-              and slippage.
+              Add liquidity to the grid positions by specifying token amounts,
+              slippage, and grid type.
             </p>
             <div className="flex items-center mb-2">
               <input
@@ -752,6 +744,44 @@ const ManagePositions: React.FC = () => {
               step={0.01}
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
+            <div className="mb-4">
+              <label className="block font-semibold mb-2">Position</label>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <input
+                    {...registerDeposit("gridType")}
+                    type="radio"
+                    value="1"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Buy
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    {...registerDeposit("gridType")}
+                    type="radio"
+                    value="0"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-gray-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Neutral
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    {...registerDeposit("gridType")}
+                    type="radio"
+                    value="2"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Sell
+                  </div>
+                </label>
+              </div>
+            </div>
             <button
               type="submit"
               className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
@@ -762,8 +792,7 @@ const ManagePositions: React.FC = () => {
 
           <form
             onSubmit={handleSubmitCompound((data) => {
-              handleCompound(data.slippage);
-              resetCompound();
+              handleCompound(data.slippage, Number(data.gridType));
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -778,6 +807,44 @@ const ManagePositions: React.FC = () => {
               step={0.01}
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
+            <div className="mb-4">
+              <label className="block font-semibold mb-2">Position</label>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <input
+                    {...registerCompound("gridType")}
+                    type="radio"
+                    value="1"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Buy
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    {...registerCompound("gridType")}
+                    type="radio"
+                    value="0"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-gray-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Neutral
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    {...registerCompound("gridType")}
+                    type="radio"
+                    value="2"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Sell
+                  </div>
+                </label>
+              </div>
+            </div>
             <button
               type="submit"
               className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
@@ -788,8 +855,7 @@ const ManagePositions: React.FC = () => {
 
           <form
             onSubmit={handleSubmitSweep((data) => {
-              handleSweep(data.slippage);
-              resetSweep();
+              handleSweep(data.slippage, Number(data.gridType));
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -805,6 +871,44 @@ const ManagePositions: React.FC = () => {
               step={0.01}
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
+            <div className="mb-4">
+              <label className="block font-semibold mb-2">Position</label>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <input
+                    {...registerSweep("gridType")}
+                    type="radio"
+                    value="1"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Buy
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    {...registerSweep("gridType")}
+                    type="radio"
+                    value="0"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-gray-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Neutral
+                  </div>
+                </label>
+                <label className="flex-1">
+                  <input
+                    {...registerSweep("gridType")}
+                    type="radio"
+                    value="2"
+                    className="hidden peer"
+                  />
+                  <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
+                    Sell
+                  </div>
+                </label>
+              </div>
+            </div>
             <button
               type="submit"
               className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
@@ -873,7 +977,6 @@ const ManagePositions: React.FC = () => {
           <form
             onSubmit={handleSubmitMinFees((data) => {
               handleSetMinFees(data.token0MinFees, data.token1MinFees);
-              resetMinFees();
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -907,7 +1010,6 @@ const ManagePositions: React.FC = () => {
           <form
             onSubmit={handleSubmitGridQuantity((data) => {
               handleSetGridQuantity(BigInt(data.gridQuantity));
-              resetGridQuantity();
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -933,7 +1035,6 @@ const ManagePositions: React.FC = () => {
           <form
             onSubmit={handleSubmitGridStep((data) => {
               handleSetGridStep(BigInt(data.gridStep));
-              resetGridStep();
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -982,6 +1083,8 @@ const ManagePositions: React.FC = () => {
               <div>
                 <a
                   href={`https://app.uniswap.org/positions/v3/base/${position.tokenId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-blue-500 underline"
                 >
                   {position.tokenId.toString()}
@@ -994,8 +1097,12 @@ const ManagePositions: React.FC = () => {
                 {position.tickUpper} ({position.priceUpper.toFixed(2)})
               </div>
               <div>{position.liquidityToken1.toFixed(2)}</div>
-              <div>{formatValue(position.feesToken0, pool?.token0.decimals)}</div>
-              <div>{formatValue(position.feesToken1, pool?.token1.decimals)}</div>
+              <div>
+                {formatValue(position.feesToken0, pool?.token0.decimals)}
+              </div>
+              <div>
+                {formatValue(position.feesToken1, pool?.token1.decimals)}
+              </div>
             </div>
           );
         })}

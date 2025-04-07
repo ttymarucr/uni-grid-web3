@@ -1,31 +1,5 @@
 export const abi = [
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_pool",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "_positionManager",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "_gridQuantity",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_gridStep",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
     anonymous: false,
     inputs: [
       {
@@ -195,38 +169,6 @@ export const abi = [
   },
   {
     inputs: [],
-    name: "MIN_TWAP_WINDOW",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    name: "activePositionIndexes",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
     name: "close",
     outputs: [],
     stateMutability: "nonpayable",
@@ -238,6 +180,11 @@ export const abi = [
         internalType: "uint256",
         name: "slippage",
         type: "uint256",
+      },
+      {
+        internalType: "enum IGridPositionManager.GridType",
+        name: "gridType",
+        type: "uint8",
       },
     ],
     name: "compound",
@@ -262,6 +209,11 @@ export const abi = [
         name: "slippage",
         type: "uint256",
       },
+      {
+        internalType: "enum IGridPositionManager.GridType",
+        name: "gridType",
+        type: "uint8",
+      },
     ],
     name: "deposit",
     outputs: [],
@@ -283,6 +235,46 @@ export const abi = [
         internalType: "uint256[]",
         name: "",
         type: "uint256[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getActivePositions",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "uint256",
+            name: "tokenId",
+            type: "uint256",
+          },
+          {
+            internalType: "int24",
+            name: "tickLower",
+            type: "int24",
+          },
+          {
+            internalType: "int24",
+            name: "tickUpper",
+            type: "int24",
+          },
+          {
+            internalType: "uint128",
+            name: "liquidity",
+            type: "uint128",
+          },
+          {
+            internalType: "uint256",
+            name: "index",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct IGridPositionManager.Position[]",
+        name: "",
+        type: "tuple[]",
       },
     ],
     stateMutability: "view",
@@ -322,6 +314,71 @@ export const abi = [
         internalType: "address",
         name: "",
         type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getPoolInfo",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "address",
+            name: "pool",
+            type: "address",
+          },
+          {
+            internalType: "address",
+            name: "positionManager",
+            type: "address",
+          },
+          {
+            internalType: "uint256",
+            name: "gridStep",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "gridQuantity",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "token0MinFees",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "token1MinFees",
+            type: "uint256",
+          },
+          {
+            internalType: "uint8",
+            name: "token0Decimals",
+            type: "uint8",
+          },
+          {
+            internalType: "uint8",
+            name: "token1Decimals",
+            type: "uint8",
+          },
+          {
+            internalType: "string",
+            name: "token0Symbol",
+            type: "string",
+          },
+          {
+            internalType: "string",
+            name: "token1Symbol",
+            type: "string",
+          },
+        ],
+        internalType: "struct IGridPositionManager.GridInfo",
+        name: "",
+        type: "tuple",
       },
     ],
     stateMutability: "view",
@@ -397,6 +454,34 @@ export const abi = [
       },
     ],
     stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "_pool",
+        type: "address",
+      },
+      {
+        internalType: "address",
+        name: "_positionManager",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "_gridQuantity",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "_gridStep",
+        type: "uint256",
+      },
+    ],
+    name: "initialize",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -477,36 +562,15 @@ export const abi = [
         name: "slippage",
         type: "uint256",
       },
+      {
+        internalType: "enum IGridPositionManager.GridType",
+        name: "gridType",
+        type: "uint8",
+      },
     ],
     name: "sweep",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "token0MinFees",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "token1MinFees",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
     type: "function",
   },
   {
