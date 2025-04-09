@@ -5,6 +5,7 @@ import {
   multicall,
   simulateContract,
   readContract,
+  estimateGas,
 } from "@wagmi/core";
 import { ToastContainer, toast } from "react-toastify";
 import {
@@ -27,7 +28,13 @@ import {
   IERC20MetadataABI,
 } from "./abis";
 import { config } from "./config";
-import { GridPosition, PoolInfo, Position, TokenMetadata } from "./types";
+import {
+  GridPosition,
+  GridState,
+  PoolMetadata,
+  Position,
+  TokenMetadata,
+} from "./types";
 import { maxUint128 } from "viem";
 import {
   fromRawTokenAmount,
@@ -72,7 +79,7 @@ function formatValue(value: number, decimals: number = 18): JSX.Element {
 
   return (
     <span>
-      0.0<sub className="text-green">{leadingZeros}</sub>
+      0.0<sub>{leadingZeros}</sub>
       {significantDigits}
     </span>
   );
@@ -84,18 +91,28 @@ const ManagePositions: React.FC = () => {
   const { contractAddress } = useParams<{ contractAddress: `0x${string}` }>();
   const { address, isConnected } = useAppKitAccount();
   const [positions, setPositions] = useState<Position[]>([]);
-  const [gridState, setGridState] = useState<{
-    token0MinFees: bigint;
-    token1MinFees: bigint;
-    gridStep: bigint;
-    gridQuantity: bigint;
-  }>();
-  const [pool, setPool] = useState<PoolInfo>();
+  const [gridState, setGridState] = useState<GridState>({
+    token0MinFees: 0n,
+    token1MinFees: 0n,
+    token0Liquidity: 0n,
+    token1Liquidity: 0n,
+    isInRange: false,
+    gridStep: 0n,
+    gridQuantity: 0n,
+  });
+  const [pool, setPool] = useState<PoolMetadata>({
+    address: "0x00",
+    token0: { address: "", symbol: "", decimals: 0 },
+    token1: { address: "", symbol: "", decimals: 0 },
+    fee: 0,
+    tick: 0,
+  });
 
   const {
     register: registerDeposit,
     handleSubmit: handleSubmitDeposit,
     reset: resetDeposit,
+    getValues: getValuesDeposit,
   } = useForm();
   const {
     register: registerCompound,
@@ -127,211 +144,144 @@ const ManagePositions: React.FC = () => {
     if (isConnected && address && contractAddress) {
       try {
         const [
-          activeIndexes,
-          poolAddress,
-          token0MinFees,
-          token1MinFees,
-          gridQuantity,
-          gridStep,
+          activePositionsResponse,
+          poolInfoResponse,
+          isInRangeResponse,
+          liquidityResponse,
         ] = await multicall(config, {
           contracts: [
             {
               address: contractAddress as `0x${string}`,
               abi: GridPositionManagerABI,
-              functionName: "getActivePositionIndexes",
+              functionName: "getActivePositions",
             },
             {
               address: contractAddress as `0x${string}`,
               abi: GridPositionManagerABI,
-              functionName: "getPool",
+              functionName: "getPoolInfo",
             },
             {
               address: contractAddress as `0x${string}`,
               abi: GridPositionManagerABI,
-              functionName: "token0MinFees",
+              functionName: "isInRange",
             },
             {
               address: contractAddress as `0x${string}`,
               abi: GridPositionManagerABI,
-              functionName: "token0MinFees",
-            },
-            {
-              address: contractAddress as `0x${string}`,
-              abi: GridPositionManagerABI,
-              functionName: "getGridQuantity",
-            },
-            {
-              address: contractAddress as `0x${string}`,
-              abi: GridPositionManagerABI,
-              functionName: "getGridStep",
+              functionName: "getLiquidity",
             },
           ],
         });
+        if (
+          activePositionsResponse.status == "success" &&
+          poolInfoResponse.status == "success"
+        ) {
+          const poolInfo = poolInfoResponse.result;
+          const gridPositions: GridPosition[] =
+            activePositionsResponse.result.map(
+              (result) => result as GridPosition
+            );
 
-        if (activeIndexes.status == "success") {
-          const positionResults = await multicall(config, {
-            contracts: activeIndexes.result.map((index) => ({
-              address: contractAddress as `0x${string}`,
-              abi: GridPositionManagerABI,
-              functionName: "getPosition",
-              args: [BigInt(index)],
-            })),
+          const slot0 = await readContract(config, {
+            address: poolInfo.pool,
+            abi: IUniswapV3PoolABI,
+            functionName: "slot0",
           });
+          const token0Meta = {
+            symbol: poolInfo.token0Symbol,
+            decimals: poolInfo.token0Decimals,
+          } as TokenMetadata;
+          const token1Meta = {
+            symbol: poolInfo.token1Symbol,
+            decimals: poolInfo.token1Decimals,
+          } as TokenMetadata;
 
-          const gridPositions: GridPosition[] = positionResults
-            .map(({ status, result }) => {
-              if (status == "success") {
-                return {
-                  tokenId: result.tokenId,
-                  tickLower: result.tickLower,
-                  tickUpper: result.tickUpper,
-                  liquidity: result.liquidity,
-                  index: result.index,
-                };
-              }
-              return null;
+          const poolFees = gridPositions.map((position) =>
+            simulateContract(config, {
+              address: NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS,
+              abi: INonfungiblePositionManagerABI,
+              functionName: "collect",
+              args: [
+                {
+                  tokenId: position.tokenId,
+                  recipient: contractAddress,
+                  amount0Max: maxUint128,
+                  amount1Max: maxUint128,
+                },
+              ],
+              account: contractAddress,
             })
-            .filter((position) => position !== null);
+          );
+          const poolFeesResponse = (await Promise.all(poolFees)).reduce(
+            (acc, { result, request }) => {
+              if (result && request.args) {
+                acc[Number(request.args[0].tokenId)] = result;
+              }
+              return acc;
+            },
+            {} as Record<number, [bigint, bigint]>
+          );
 
-          if (poolAddress.status == "success") {
-            const [slot0, token0, token1] = await multicall(config, {
-              contracts: [
-                {
-                  address: poolAddress.result,
-                  abi: IUniswapV3PoolABI,
-                  functionName: "slot0",
-                },
-                {
-                  address: poolAddress.result,
-                  abi: IUniswapV3PoolABI,
-                  functionName: "token0",
-                },
-                {
-                  address: poolAddress.result,
-                  abi: IUniswapV3PoolABI,
-                  functionName: "token1",
-                },
-              ],
-            });
-            const [
-              { result: token0Decimals },
-              { result: token0Symbol },
-              { result: token1Decimals },
-              { result: token1Symbol },
-            ] = await multicall(config, {
-              contracts: [
-                {
-                  address: token0.result,
-                  abi: IERC20MetadataABI,
-                  functionName: "decimals",
-                },
-                {
-                  address: token0.result,
-                  abi: IERC20MetadataABI,
-                  functionName: "symbol",
-                },
-                {
-                  address: token1.result,
-                  abi: IERC20MetadataABI,
-                  functionName: "decimals",
-                },
-                {
-                  address: token1.result,
-                  abi: IERC20MetadataABI,
-                  functionName: "symbol",
-                },
-              ],
-            });
-            const token0Meta = {
-              address: token0.result || "0x00",
-              symbol: token0Symbol || "Token 0",
-              decimals: token0Decimals || 18,
-            } as TokenMetadata;
-            const token1Meta = {
-              address: token1.result || "0x00",
-              symbol: token1Symbol || "Token 1",
-              decimals: token1Decimals || 18,
-            } as TokenMetadata;
-
-            const poolFees = gridPositions.map((position) =>
-              simulateContract(config, {
-                address: NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS,
-                abi: INonfungiblePositionManagerABI,
-                functionName: "collect",
-                args: [
-                  {
-                    tokenId: position.tokenId,
-                    recipient: contractAddress,
-                    amount0Max: maxUint128,
-                    amount1Max: maxUint128,
-                  },
-                ],
-                account: contractAddress,
-              })
-            );
-            const poolFeesResponse = (await Promise.all(poolFees)).reduce(
-              (acc, { result, request }) => {
-                if (result) {
-                  acc[Number(request.args[0].tokenId)] = result;
-                }
-                return acc;
-              },
-              {} as Record<number, [bigint, bigint]>
-            );
-
-            const positionsWithFees: Position = gridPositions.map(
-              (position) => {
-                const [feesToken0, feesToken1] = poolFeesResponse[
-                  Number(position.tokenId)
-                ] || [0n, 0n];
-                const liq = liquidityToTokenAmounts(
-                  position.liquidity,
+          const positionsWithFees: Position[] = gridPositions.map(
+            (position) => {
+              const [feesToken0, feesToken1] = poolFeesResponse[
+                Number(position.tokenId)
+              ] || [0n, 0n];
+              const liq = liquidityToTokenAmounts(
+                position.liquidity,
+                position.tickLower,
+                position.tickUpper,
+                token0Meta.decimals,
+                token1Meta.decimals
+              );
+              return {
+                ...position,
+                priceLower: tickToPrice(
                   position.tickLower,
+                  token0Meta.decimals,
+                  token1Meta.decimals
+                )[0],
+                priceUpper: tickToPrice(
                   position.tickUpper,
                   token0Meta.decimals,
                   token1Meta.decimals
-                );
-                return {
-                  ...position,
-                  priceLower: tickToPrice(
-                    position.tickLower,
-                    token0Meta.decimals,
-                    token1Meta.decimals
-                  )[0],
-                  priceUpper: tickToPrice(
-                    position.tickUpper,
-                    token0Meta.decimals,
-                    token1Meta.decimals
-                  )[0],
-                  feesToken0: fromRawTokenAmount(
-                    feesToken0,
-                    token0Meta.decimals
-                  ),
-                  feesToken1: fromRawTokenAmount(
-                    feesToken1,
-                    token1Meta.decimals
-                  ),
-                  liquidityToken0: liq.amount0,
-                  liquidityToken1: liq.amount1,
-                };
-              }
-            );
-            setPositions(positionsWithFees);
-            setPool({
-              address: poolAddress.result,
-              token0: token0Meta,
-              token1: token1Meta,
-              fee: slot0.result?.[4],
-              tick: slot0.result?.[1],
-            } as PoolInfo);
-            setGridState({
-              token0MinFees: token0MinFees.result,
-              token1MinFees: token1MinFees.result,
-              gridQuantity: gridQuantity.result,
-              gridStep: gridStep.result,
-            } as { token0MinFees: bigint; token1MinFees: bigint; gridStep: bigint; gridQuantity: bigint });
-            toast("Positions fetched successfully");
-          }
+                )[0],
+                feesToken0: fromRawTokenAmount(feesToken0, token0Meta.decimals),
+                feesToken1: fromRawTokenAmount(feesToken1, token1Meta.decimals),
+                liquidityToken0: liq.amount0,
+                liquidityToken1: liq.amount1,
+              };
+            }
+          );
+          setPositions(
+            positionsWithFees.sort((a, b) => a.tickLower - b.tickLower)
+          );
+          setPool({
+            address: poolInfo.pool,
+            token0: token0Meta,
+            token1: token1Meta,
+            fee: slot0?.[4],
+            tick: slot0?.[1],
+          } as PoolMetadata);
+          setGridState({
+            token0MinFees: poolInfo.token0MinFees,
+            token1MinFees: poolInfo.token1MinFees,
+            gridQuantity: poolInfo.gridQuantity,
+            gridStep: poolInfo.gridStep,
+            token0Liquidity:
+              liquidityResponse.status == "success"
+                ? liquidityResponse.result[0]
+                : 0n,
+            token1Liquidity:
+              liquidityResponse.status == "success"
+                ? liquidityResponse.result[1]
+                : 0n,
+            isInRange:
+              isInRangeResponse.status == "success"
+                ? isInRangeResponse.result
+                : false,
+          });
+          toast("Positions fetched successfully");
         }
       } catch (error) {
         console.error("Error fetching positions:", error);
@@ -359,37 +309,30 @@ const ManagePositions: React.FC = () => {
     }
   };
 
-  const inRangePositionIndex = useCallback(() => {
-    if (pool) {
-      const positionIndex = positions.reduce(
-        (closestIndex, position, index) => {
-          const currentDiff = Math.abs(position.tickLower - pool.tick);
-          const closestDiff = Math.abs(
-            positions[closestIndex].tickLower - pool.tick
-          );
-          return currentDiff < closestDiff ? index : closestIndex;
-        },
-        0
-      );
-      const position = positions[positionIndex];
-      return position?.tickLower <= pool.tick && position.tickUpper >= pool.tick
-        ? positionIndex
-        : null;
-    }
-    return null;
-  }, [pool, positions]);
+  const inRangePositionIndex = useCallback(
+    () =>
+      positions.findIndex(
+        (position) =>
+          position.tickLower <= pool.tick && position.tickUpper >= pool.tick
+      ),
+    [pool, positions]
+  );
 
   const liquidity = useCallback(
     () =>
-      positions
-        .reduce((sum, position) => sum + position.liquidityToken1, 0)
-        .toFixed(2),
-    [positions]
+      fromRawTokenAmount(gridState.token0Liquidity, pool.token0.decimals) *
+        tickToPrice(pool.tick, pool.token0.decimals, pool.token1.decimals)[0] +
+      fromRawTokenAmount(gridState.token1Liquidity, pool.token1.decimals),
+    [
+      gridState.token0Liquidity,
+      gridState.token1Liquidity,
+      pool.tick,
+      pool.token0.decimals,
+      pool.token1.decimals,
+    ]
   );
 
-  const totalFeesInToken1 = useCallback(() => {
-    if (!pool) return "0.00";
-
+  const totalFees = useCallback(() => {
     return positions
       .reduce((sum, position) => {
         const feesToken0InToken1 =
@@ -405,7 +348,6 @@ const ManagePositions: React.FC = () => {
       | "deposit"
       | "close"
       | "compound"
-      | "emergencyWithdraw"
       | "recoverEther"
       | "renounceOwnership"
       | "setGridQuantity"
@@ -418,6 +360,13 @@ const ManagePositions: React.FC = () => {
     args: any[] = []
   ) => {
     try {
+      const eGas = await estimateGas(config, {
+        address: contractAddress as `0x${string}`,
+        abi: GridPositionManagerABI,
+        functionName,
+        args,
+        account: address,
+      });
       const hash = await writeContract(config, {
         address: contractAddress as `0x${string}`,
         abi: GridPositionManagerABI,
@@ -425,6 +374,7 @@ const ManagePositions: React.FC = () => {
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         args,
+        gas: eGas,
       });
       toast(`Transaction Hash: ${hash}`);
       fetchPositions();
@@ -446,9 +396,13 @@ const ManagePositions: React.FC = () => {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
     }
+    if (!Number.isInteger(gridType) || ![0, 1, 2].includes(gridType)) {
+      toast.error("Select a Position, Buy, Neutral or Sell");
+      return;
+    }
     await handleContractAction("deposit", [
-      toRawTokenAmount(token0Amount, pool?.token0.decimals),
-      toRawTokenAmount(token1Amount, pool?.token1.decimals),
+      toRawTokenAmount(token0Amount, pool.token0.decimals),
+      toRawTokenAmount(token1Amount, pool.token1.decimals),
       slippage * 100,
       gridType,
     ]);
@@ -464,6 +418,10 @@ const ManagePositions: React.FC = () => {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
     }
+    if (!Number.isInteger(gridType) || ![0, 1, 2].includes(gridType)) {
+      toast.error("Select a Position, Buy, Neutral or Sell");
+      return;
+    }
     await handleContractAction("compound", [slippage * 100, gridType]);
     resetCompound();
   };
@@ -471,6 +429,10 @@ const ManagePositions: React.FC = () => {
   const handleSweep = async (slippage: number, gridType: number) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
+      return;
+    }
+    if (!Number.isInteger(gridType) || ![0, 1, 2].includes(gridType)) {
+      toast.error("Select a Position, Buy, Neutral or Sell");
       return;
     }
     await handleContractAction("sweep", [slippage * 100, gridType]);
@@ -481,17 +443,13 @@ const ManagePositions: React.FC = () => {
     await handleContractAction("close");
   };
 
-  const handleEmergencyWithdraw = async () => {
-    await handleContractAction("emergencyWithdraw");
-  };
-
   const handleSetMinFees = async (
     token0MinFees: number,
     token1MinFees: number
   ) => {
     await handleContractAction("setMinFees", [
-      toRawTokenAmount(token0MinFees, pool?.token0.decimals),
-      toRawTokenAmount(token1MinFees, pool?.token1.decimals),
+      toRawTokenAmount(token0MinFees, pool.token0.decimals),
+      toRawTokenAmount(token1MinFees, pool.token1.decimals),
     ]);
     resetMinFees();
   };
@@ -504,6 +462,25 @@ const ManagePositions: React.FC = () => {
   const handleSetGridStep = async (gridStep: bigint) => {
     await handleContractAction("setGridStep", [gridStep]);
     resetGridStep();
+  };
+
+  const handleTokenApprove = async (
+    tokenAddress: string,
+    amount: number,
+    decimals: number
+  ) => {
+    try {
+      await writeContract(config, {
+        address: tokenAddress as `0x${string}`,
+        abi: IERC20MetadataABI,
+        functionName: "approve",
+        args: [contractAddress, toRawTokenAmount(amount, decimals)],
+      });
+      toast.success("Token approved successfully.");
+    } catch (error) {
+      toast.error("Error approving token.");
+      console.error("Error approving token:", error);
+    }
   };
 
   useEffect(() => {
@@ -524,11 +501,9 @@ const ManagePositions: React.FC = () => {
   const chartData = {
     labels: positions.map(
       (position) =>
-        `Tick: ${position.tickLower} - ${
-          position.tickUpper
-        } (${position.priceLower.toFixed(2)} - ${position.priceUpper.toFixed(
+        `${position.priceLower.toFixed(2)} - ${position.priceUpper.toFixed(
           2
-        )})`
+        )}`
     ),
     datasets: [
       {
@@ -561,11 +536,11 @@ const ManagePositions: React.FC = () => {
             borderColor: "red",
             borderWidth: 2,
             label: {
-              content: `"Current Tick ${pool?.tick} (${tickToPrice(
-                pool?.tick || 0,
-                pool?.token0.decimals || 18,
-                pool?.token1.decimals || 18
-              )[0].toFixed(2)})"`,
+              content: `"${tickToPrice(
+                pool.tick || 0,
+                pool.token0.decimals || 18,
+                pool.token1.decimals || 18
+              )[0].toFixed(2)}"`,
               enabled: true,
               position: "end",
             },
@@ -583,15 +558,15 @@ const ManagePositions: React.FC = () => {
       y: {
         title: {
           display: true,
-          text: "Liquidity",
+          text: `Liquidity (${pool.token1.symbol})`,
         },
         beginAtZero: true,
       },
     },
   };
   return (
-    <div className="m-10">
-      <div className="grid grid-flow-col justify-items-stretch gap-4 text-lg font-semibold">
+    <div className="md:m-10 m-2">
+      <div className="grid md:grid-flow-col grid-flow-row justify-items-stretch gap-4 md:text-lg text-sm font-semibold">
         <Link to="/">
           <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
             &#12296;
@@ -609,13 +584,13 @@ const ManagePositions: React.FC = () => {
             inRangePositionIndex() ? "green-card" : "bg-red-900"
           } rounded flex justify-center items-center mb-4 px-4 py-2`}
         >
-          {inRangePositionIndex() ? "In Range" : "Not In Range"}
+          {gridState.isInRange ? "In Range" : "Not In Range"}
         </div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
-          Liquidity {liquidity()}
+          Liquidity {liquidity().toFixed(2)}
         </div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
-          Total Fees {totalFeesInToken1()}
+          Total Fees {totalFees()}
         </div>
       </div>
       <div className="mb-4">
@@ -627,11 +602,19 @@ const ManagePositions: React.FC = () => {
                 href={`https://app.uniswap.org/explore/pools/base/${pool.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-500 underline"
+                className="underline"
               >
                 ({pool.token0.symbol}/{pool.token1.symbol})
               </a>{" "}
               {`${pool.fee / 10 ** 5}%`}
+              <div className="flex float-right text-sm font-normal">
+              <button
+          onClick={fetchPositions}
+          className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
+        >
+          Refresh
+        </button>
+              </div>
             </h2>
             <p>
               Current Price:{" "}
@@ -672,34 +655,48 @@ const ManagePositions: React.FC = () => {
                 {...registerDeposit("token0Amount")}
                 type="number"
                 min={0}
-                step={1 / 10 ** (pool?.token0.decimals || 18)}
-                placeholder={`${pool?.token0.symbol} Amount`}
+                step={1 / 10 ** (pool.token0.decimals || 18)}
+                placeholder={`${pool.token0.symbol} Amount`}
                 className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
               <button
                 type="button"
                 onClick={async () => {
                   const token0Balance = await fetchTokenBalance(
-                    pool?.token0.address || "0x00"
+                    pool.token0.address || "0x00"
                   );
                   const token1Balance = await fetchTokenBalance(
-                    pool?.token1.address || "0x00"
+                    pool.token1.address || "0x00"
                   );
                   resetDeposit({
                     token0Amount: fromRawTokenAmount(
                       token0Balance,
-                      pool?.token0.decimals
-                    ).toFixed(pool?.token0.decimals),
+                      pool.token0.decimals
+                    ).toFixed(pool.token0.decimals),
                     token1Amount: fromRawTokenAmount(
                       token1Balance,
-                      pool?.token1.decimals
-                    ).toFixed(pool?.token1.decimals),
+                      pool.token1.decimals
+                    ).toFixed(pool.token1.decimals),
                     slippage: 0.1,
                   });
                 }}
-                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
               >
                 Max
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { token0Amount } = getValuesDeposit();
+                  handleTokenApprove(
+                    pool.token0.address || "0x00",
+                    token0Amount,
+                    pool.token0.decimals
+                  );
+                }}
+                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
+              >
+                Approve
               </button>
             </div>
             <div className="flex items-center mb-2">
@@ -707,34 +704,48 @@ const ManagePositions: React.FC = () => {
                 {...registerDeposit("token1Amount")}
                 type="number"
                 min={0}
-                step={1 / 10 ** (pool?.token1.decimals || 18)}
-                placeholder={`${pool?.token1.symbol} Amount`}
+                step={1 / 10 ** (pool.token1.decimals || 18)}
+                placeholder={`${pool.token1.symbol} Amount`}
                 className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
               <button
                 type="button"
                 onClick={async () => {
                   const token0Balance = await fetchTokenBalance(
-                    pool?.token0.address || "0x00"
+                    pool.token0.address || "0x00"
                   );
                   const token1Balance = await fetchTokenBalance(
-                    pool?.token1.address || "0x00"
+                    pool.token1.address || "0x00"
                   );
                   resetDeposit({
                     token0Amount: fromRawTokenAmount(
                       token0Balance,
-                      pool?.token0.decimals
-                    ).toFixed(pool?.token0.decimals),
+                      pool.token0.decimals
+                    ).toFixed(pool.token0.decimals),
                     token1Amount: fromRawTokenAmount(
                       token1Balance,
-                      pool?.token1.decimals
-                    ).toFixed(pool?.token1.decimals),
+                      pool.token1.decimals
+                    ).toFixed(pool.token1.decimals),
                     slippage: 0.1,
                   });
                 }}
-                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md"
+                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
               >
                 Max
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { token1Amount } = getValuesDeposit();
+                  handleTokenApprove(
+                    pool.token1.address || "0x00",
+                    token1Amount,
+                    pool.token1.decimals
+                  );
+                }}
+                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
+              >
+                Approve
               </button>
             </div>
             <input
@@ -784,7 +795,7 @@ const ManagePositions: React.FC = () => {
             </div>
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Deposit
             </button>
@@ -847,7 +858,7 @@ const ManagePositions: React.FC = () => {
             </div>
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Compound
             </button>
@@ -911,7 +922,7 @@ const ManagePositions: React.FC = () => {
             </div>
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Sweep
             </button>
@@ -930,7 +941,7 @@ const ManagePositions: React.FC = () => {
             </p>
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Withdraw
             </button>
@@ -949,28 +960,9 @@ const ManagePositions: React.FC = () => {
             </p>
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Close
-            </button>
-          </form>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleEmergencyWithdraw();
-            }}
-            className="green-card rounded-lg shadow-md p-4"
-          >
-            <h3 className="font-semibold text-lg mb-2">Emergency Withdraw</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Perform an emergency withdrawal of all funds.
-            </p>
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
-            >
-              Emergency Withdraw
             </button>
           </form>
 
@@ -988,20 +980,20 @@ const ManagePositions: React.FC = () => {
             <input
               {...registerMinFees("token0MinFees")}
               type="number"
-              step={1 / 10 ** (pool?.token0.decimals || 18)}
-              placeholder={`${pool?.token0.symbol} Minimum Fees`}
+              step={1 / 10 ** (pool.token0.decimals || 18)}
+              placeholder={`${pool.token0.symbol} Minimum Fees`}
               className="w-full border border-gray-300 rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
             <input
               {...registerMinFees("token1MinFees")}
               type="number"
-              step={1 / 10 ** (pool?.token1.decimals || 18)}
-              placeholder={`${pool?.token1.symbol} Minimum Fees`}
+              step={1 / 10 ** (pool.token1.decimals || 18)}
+              placeholder={`${pool.token1.symbol} Minimum Fees`}
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Set Minimum Fees
             </button>
@@ -1026,7 +1018,7 @@ const ManagePositions: React.FC = () => {
             />
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Set Grid Quantity
             </button>
@@ -1051,7 +1043,7 @@ const ManagePositions: React.FC = () => {
             />
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition"
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
             >
               Set Grid Step
             </button>
@@ -1059,13 +1051,11 @@ const ManagePositions: React.FC = () => {
         </div>
       </Collapse>
       <div>
-        <div className="grid grid-cols-6 font-bold border-b-2 border-gray-300 pb-2 mb-2">
+        <div className="grid grid-cols-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Position</div>
-          <div>Lower Tick (Price)</div>
-          <div>Upper Tick (Price)</div>
-          <div>Liquidity ({pool?.token1.symbol})</div>
-          <div>Fees {pool?.token0.symbol}</div>
-          <div>Fees {pool?.token1.symbol}</div>
+          <div>Price Range</div>
+          <div>Liquidity ({pool.token1.symbol})</div>
+          <div>Uncollected Fees</div>
         </div>
         {positions.map((position, index) => {
           const isHighlighted =
@@ -1076,7 +1066,7 @@ const ManagePositions: React.FC = () => {
           return (
             <div
               key={index}
-              className={`grid grid-cols-6 border-b border-gray-200 py-2 ${
+              className={`grid grid-cols-4 border-b border-gray-200 py-2 ${
                 isHighlighted ? "green-card" : ""
               }`}
             >
@@ -1085,23 +1075,19 @@ const ManagePositions: React.FC = () => {
                   href={`https://app.uniswap.org/positions/v3/base/${position.tokenId}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-500 underline"
+                  className="underline"
                 >
                   {position.tokenId.toString()}
                 </a>
               </div>
               <div>
-                {position.tickLower} ({position.priceLower.toFixed(2)})
-              </div>
-              <div>
-                {position.tickUpper} ({position.priceUpper.toFixed(2)})
+                {position.priceLower.toFixed(2)}{" "}-{" "}
+                {position.priceUpper.toFixed(2)}
               </div>
               <div>{position.liquidityToken1.toFixed(2)}</div>
               <div>
-                {formatValue(position.feesToken0, pool?.token0.decimals)}
-              </div>
-              <div>
-                {formatValue(position.feesToken1, pool?.token1.decimals)}
+                <p className="truncate">{formatValue(position.feesToken0, pool.token0.decimals)} {pool.token0.symbol}</p>
+                <p className="truncate">{formatValue(position.feesToken1, pool.token1.decimals)} {pool.token1.symbol}</p>
               </div>
             </div>
           );

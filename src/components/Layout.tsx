@@ -14,9 +14,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     <div className="container mx-auto p-4">
       <header>
         <h1>Grid Liquidiy Management
-        <div className="flex float-right text-lg">
+        <div className="flex md:float-right text-lg">
           {isConnected ? (
-            <div className="flex items-center">
+            <div className="flex items-center justify-between w-full">
               <div className="m-2 pr-2 h-10 green-card rounded flex items-center" >
                 <img src={`https://effigy.im/a/${address}.svg`} className="rounded h-10 pr-2"/>
                 {`${address?.slice(0, 6)}...${address?.slice(-4)}`}
@@ -29,7 +29,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               </button>
             </div>
           ) : (
-            <div className="flex items-center">
+            <div className="flex items-center m-2">
             <button
               onClick={() => open({ view: "Connect", namespace: "eip155" })}
               className="bg-blue-500 text-white px-4 py-2 rounded"
@@ -41,7 +41,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
         </h1>
       </header>
-      <main>{children}</main>
+      {isConnected && (
+        <main>{children}</main>
+      )}
     </div>
   );
 };

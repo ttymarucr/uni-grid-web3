@@ -13,10 +13,10 @@ const Collapse: React.FC<CollapseProps> = ({ title, children }) => {
   };
 
   return (
-    <div className="rounded-md shadow-md mb-10">
+    <div className="rounded-md shadow-md md:mb-10 mb-2">
       <button
         onClick={toggleCollapse}
-        className="w-full text-left px-4 py-2 green-card rounded-md text-lg font-semibold flex justify-between items-center"
+        className="text-left px-4 py-2 green-card rounded-tl-md rounded-tr-md text-lg font-semibold flex justify-between items-center"
       >
         <span>{title}</span>
         <span
@@ -27,8 +27,9 @@ const Collapse: React.FC<CollapseProps> = ({ title, children }) => {
           ▼
         </span>
       </button>
+      <div className="w-full h-2 green-card"></div>
       <div
-        className={`overflow-hidden transition-all duration-300 ${
+        className={`md:overflow-hidden overflow-auto transition-all duration-300 ${
           isOpen ? "max-h-screen" : "max-h-0"
         }`}
       >
