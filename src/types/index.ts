@@ -34,12 +34,15 @@ export interface PoolInfo {
   positionManager: `0x${string}`; // Address of the Uniswap V3 position manager
   gridStep: bigint; // Step size for the grid
   gridQuantity: bigint; // Quantity of positions in the grid
+  fee: number; // Fee tier of the pool
   token0MinFees: bigint; // Minimum fees for token0
   token1MinFees: bigint; // Minimum fees for token1
   token0Decimals: number; // Decimals for token0
   token1Decimals: number; // Decimals for token1
   token0Symbol: string; // Symbol for token0
   token1Symbol: string; // Symbol for token1
+  token0: `0x${string}`; // Address for token0
+  token1: `0x${string}`; // Address for token1
 }
 
 export interface GridDeployment extends PoolInfo {

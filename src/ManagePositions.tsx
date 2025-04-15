@@ -266,7 +266,7 @@ const ManagePositions: React.FC = () => {
             address: poolInfo.pool,
             token0: token0Meta,
             token1: token1Meta,
-            fee: slot0?.[4],
+            fee: poolInfo.fee,
             tick: slot0?.[1],
           } as PoolMetadata);
           setGridState({
@@ -619,7 +619,7 @@ const ManagePositions: React.FC = () => {
               >
                 ({pool.token0.symbol}/{pool.token1.symbol})
               </a>{" "}
-              {`${pool.fee / 10 ** 5}%`}
+              {`${pool.fee / 10000}%`}
               <div className="flex float-right text-sm font-normal">
               <button
           onClick={fetchPositions}

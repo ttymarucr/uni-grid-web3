@@ -363,7 +363,8 @@ const GridManager = () => {
                     <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white">
                       <p>
                         <strong>Pool:</strong> ({deployment.token0Symbol}/
-                        {deployment.token1Symbol})
+                        {deployment.token1Symbol}){" "}
+                        {(deployment.fee / 10000).toFixed(2)}%
                       </p>
                       <p>
                         <strong>Liquidity:</strong>

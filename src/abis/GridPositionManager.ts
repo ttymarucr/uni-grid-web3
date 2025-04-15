@@ -332,6 +332,11 @@ export const abi = [
             type: "uint256",
           },
           {
+            internalType: "uint24",
+            name: "fee",
+            type: "uint24",
+          },
+          {
             internalType: "uint256",
             name: "token0MinFees",
             type: "uint256",
