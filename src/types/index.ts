@@ -60,3 +60,21 @@ export interface GridState {
   gridStep: bigint;
   gridQuantity: bigint;
 }
+
+export interface TrustedToken {
+  address: `0x${string}`;
+  symbol: string;
+}
+
+export interface DeploymentContract {
+  gridManager: `0x${string}`;
+  uniswapV3PositionManager: `0x${string}`;
+  uniswapV3Factory: `0x${string}`;
+}
+export interface TrustedTokensMap {
+  [key: string]: TrustedToken[];
+}
+
+export interface DeploymentContractsMap {
+  [key: string]: DeploymentContract;
+}

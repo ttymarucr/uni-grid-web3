@@ -361,6 +361,16 @@ export const abi = [
             name: "token1Symbol",
             type: "string",
           },
+          {
+            internalType: "address",
+            name: "token0",
+            type: "address",
+          },
+          {
+            internalType: "address",
+            name: "token1",
+            type: "address",
+          },
         ],
         internalType: "struct IGridPositionManager.GridInfo",
         name: "",

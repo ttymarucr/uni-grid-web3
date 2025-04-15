@@ -7,7 +7,7 @@ import {
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLogs } from "viem/actions";
-import { config } from "./config";
+import { config, deploymentContractsMap, trustedTokensMap,  } from "./config";
 import {
   getPublicClient,
   multicall,
@@ -16,39 +16,37 @@ import {
 } from "@wagmi/core";
 import { parseAbiItem } from "viem";
 import { toast } from "react-toastify";
-import { set, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { GridDeployment, PoolInfo } from "./types";
+import { DeploymentContract, GridDeployment, PoolInfo, TrustedToken } from "./types";
 import { fromRawTokenAmount } from "./utils/uniswapUtils";
+import { useChainId } from "wagmi";
 
-const GRID_MANAGER_ADDRESS = "0x134FBc6CC346cF2c8b29487A5880328112023704"; // Replace with your contract address
-const UNISWAP_V3_POSITION_MANAGER_ADDRESS =
-  "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1"; // Replace with your contract address
-const UNISWAP_V3_FACTORY_ADDRESS = "0x33128a8fC17869897dcE68Ed026d694621f6FDfD"; // Uniswap V3 Factory address
+const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 
 const GridManager = () => {
   const { address, isConnected } = useAppKitAccount();
   const client = getPublicClient(config);
   const [deployments, setDeployments] = useState<GridDeployment[]>([]);
   const [trustedTokens, setTrustedTokens] = useState<
-    { label: string; value: `0x${string}` }[]
-  >([
-    { label: "USDC", value: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" },
-    { label: "WETH", value: "0x4200000000000000000000000000000000000006" },
-  ]);
+    TrustedToken[]
+  >([]);
+  const [deploymentContracts, setDeploymentContracts] =
+    useState<DeploymentContract>({} as DeploymentContract);
   const [selectedToken0, setSelectedToken0] = useState();
   const [selectedToken1, setSelectedToken1] = useState();
+  const [feeTier, setFeeTier] = useState(3000); // Example: 0.3% fee tier
   const [poolAddress, setPoolAddress] = useState();
 
   const [isOwner, setIsOwner] = useState(false);
   const [newImplementation, setNewImplementation] = useState("");
 
-  const { data: gridDeploymentLogs } = useQuery({
+  const { data: gridDeploymentLogs, refetch } = useQuery({
     queryKey: ["logs", isConnected, address],
     queryFn: async () => {
-      if (!isConnected) return [];
+      if (!isConnected || !deploymentContracts.gridManager) return [];
       const logs = await getLogs(client, {
-        address: GRID_MANAGER_ADDRESS,
+        address: deploymentContracts.gridManager,
         event: parseAbiItem(
           "event GridDeployed(address indexed owner, address indexed gridPositionManager, address pool)"
         ),
@@ -60,6 +58,8 @@ const GridManager = () => {
       return logs.map(({ args }) => ({ ...args }));
     },
   });
+
+  const chainId = useChainId({config});
 
   const fetchPoolInfo = useCallback(async () => {
     if (!gridDeploymentLogs?.length) return;
@@ -125,17 +125,18 @@ const GridManager = () => {
         return;
       }
       const hash = await writeContract(config, {
-        address: GRID_MANAGER_ADDRESS,
+        address: deploymentContracts.gridManager,
         abi: GridManagerABI,
         functionName: "delployGridPositionManager",
         args: [
           poolAddress,
-          UNISWAP_V3_POSITION_MANAGER_ADDRESS,
+          deploymentContracts.uniswapV3PositionManager,
           gridSize,
           gridStep,
         ],
       });
       reset();
+      refetch();
       toast(`Transaction Hash: ${hash}`);
     } catch (error) {
       toast.error(`Error deploying grid: ${(error as Error).message}`);
@@ -148,11 +149,11 @@ const GridManager = () => {
   };
 
   const checkOwnership = useCallback(async () => {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address || !deploymentContracts.gridManager) return;
 
     try {
       const owner = await readContract(config, {
-        address: GRID_MANAGER_ADDRESS,
+        address: deploymentContracts.gridManager,
         abi: GridManagerABI,
         functionName: "owner",
       });
@@ -160,30 +161,29 @@ const GridManager = () => {
     } catch (error) {
       console.error("Error checking ownership:", error);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, deploymentContracts.gridManager]);
 
   useEffect(() => {
     checkOwnership();
   }, [checkOwnership]);
 
   useEffect(() => {
-    if (selectedToken0 && selectedToken1) {
+    if (selectedToken0 && selectedToken1 && feeTier) {
       const fetchPoolAddress = async () => {
         if (selectedToken0 === selectedToken1) {
           setPoolAddress(undefined);
           return;
         }
         if(selectedToken0 === "" || selectedToken1 === "") {
-          console.log("selectedToken0 or selectedToken1 is empty");
           setPoolAddress(undefined);
           return;
         }
         try {
           const pool = await readContract(config, {
-            address: UNISWAP_V3_FACTORY_ADDRESS,
+            address: deploymentContracts.uniswapV3Factory,
             abi: IUniswapV3FactoryABI,
             functionName: "getPool",
-            args: [selectedToken0, selectedToken1, 3000], // Example: 0.3% fee tier
+            args: [selectedToken0, selectedToken1, feeTier],
           });
 
           if (pool === "0x0000000000000000000000000000000000000000" || !pool) {
@@ -203,7 +203,22 @@ const GridManager = () => {
     } else {
       setPoolAddress(undefined);
     }
-  }, [selectedToken0, selectedToken1]);
+  }, [deploymentContracts.uniswapV3Factory, feeTier, selectedToken0, selectedToken1]);
+
+  useEffect(() => {
+    if(chainId){ 
+      setTrustedTokens(trustedTokensMap[chainId]);
+      setDeploymentContracts(deploymentContractsMap[chainId]);
+    }
+  }
+  , [chainId]);
+
+  useEffect(() => {
+    if(deploymentContracts.gridManager){
+      refetch();
+    }
+  }
+  , [deploymentContracts.gridManager, refetch]);
 
   const upgradeTo = async () => {
     if (!newImplementation) {
@@ -213,7 +228,7 @@ const GridManager = () => {
 
     try {
       const hash = await writeContract(config, {
-        address: GRID_MANAGER_ADDRESS,
+        address: deploymentContracts.gridManager,
         abi: GridManagerABI,
         functionName: "upgradeTo",
         args: [newImplementation],
@@ -242,8 +257,8 @@ const GridManager = () => {
               >
                 <option value="" className="bg-gray-400 text-gray-800">Select Token 0</option>
                 {trustedTokens.map((token) => (
-                  <option key={token.value} value={token.value} className="bg-gray-400 text-gray-800">
-                    {token.label}
+                  <option key={token.address} value={token.address} className="bg-gray-400 text-gray-800">
+                    {token.symbol}
                   </option>
                 ))}
               </select>
@@ -257,8 +272,22 @@ const GridManager = () => {
               >
                 <option value="" className="bg-gray-400 text-gray-800">Select Token 1</option>
                 {trustedTokens.map((token) => (
-                  <option key={token.value} value={token.value} className="bg-gray-400 text-gray-800">
-                    {token.label}
+                  <option key={token.address} value={token.address} className="bg-gray-400 text-gray-800">
+                    {token.symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-medium">Fee Tier</label>
+              <select
+                value={feeTier}
+                onChange={(e) => setFeeTier(e.target.value)}
+                className="border p-2 rounded w-full"
+              >
+                {UNISWAP_FEE_TIERS.map((token) => (
+                  <option key={token} value={token} className="bg-gray-400 text-gray-800">
+                    {token /10000}%
                   </option>
                 ))}
               </select>

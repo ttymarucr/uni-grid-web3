@@ -27,8 +27,9 @@ import {
   INonfungiblePositionManagerABI,
   IERC20MetadataABI,
 } from "./abis";
-import { config } from "./config";
+import { config, deploymentContractsMap } from "./config";
 import {
+  DeploymentContract,
   GridPosition,
   GridState,
   PoolMetadata,
@@ -43,6 +44,7 @@ import {
   toRawTokenAmount,
 } from "./utils/uniswapUtils";
 import Collapse from "./components/collapse/Collapse";
+import { useChainId } from "wagmi";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -86,10 +88,10 @@ function formatValue(value: number, decimals: number = 18): JSX.Element {
 }
 
 const ManagePositions: React.FC = () => {
-  const NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS =
-    "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1";
   const { contractAddress } = useParams<{ contractAddress: `0x${string}` }>();
   const { address, isConnected } = useAppKitAccount();
+  const [deploymentContracts, setDeploymentContracts] =
+      useState<DeploymentContract>({} as DeploymentContract);
   const [positions, setPositions] = useState<Position[]>([]);
   const [gridState, setGridState] = useState<GridState>({
     token0MinFees: 0n,
@@ -107,6 +109,8 @@ const ManagePositions: React.FC = () => {
     fee: 0,
     tick: 0,
   });
+
+  const chainId = useChainId({config});
 
   const {
     register: registerDeposit,
@@ -141,7 +145,7 @@ const ManagePositions: React.FC = () => {
   } = useForm();
 
   const fetchPositions = useCallback(async () => {
-    if (isConnected && address && contractAddress) {
+    if (isConnected && address && contractAddress && deploymentContracts.uniswapV3PositionManager) {
       try {
         const [
           activePositionsResponse,
@@ -188,17 +192,19 @@ const ManagePositions: React.FC = () => {
             functionName: "slot0",
           });
           const token0Meta = {
+            address: poolInfo.token0,
             symbol: poolInfo.token0Symbol,
             decimals: poolInfo.token0Decimals,
           } as TokenMetadata;
           const token1Meta = {
+            address: poolInfo.token1,
             symbol: poolInfo.token1Symbol,
             decimals: poolInfo.token1Decimals,
           } as TokenMetadata;
 
           const poolFees = gridPositions.map((position) =>
             simulateContract(config, {
-              address: NONFUNGIBLE_POSITION_MANAGER_CONTRACT_ADDRESS,
+              address: deploymentContracts.uniswapV3PositionManager,
               abi: INonfungiblePositionManagerABI,
               functionName: "collect",
               args: [
@@ -287,7 +293,7 @@ const ManagePositions: React.FC = () => {
         console.error("Error fetching positions:", error);
       }
     }
-  }, [address, isConnected, contractAddress]);
+  }, [isConnected, address, contractAddress, deploymentContracts.uniswapV3PositionManager]);
 
   const fetchTokenBalance = async (tokenAddress: string) => {
     if (!address || !isConnected) {
@@ -497,6 +503,13 @@ const ManagePositions: React.FC = () => {
       });
     }
   }, [gridState, resetGridQuantity, resetGridStep]);
+
+  useEffect(() => {
+      if(chainId){ 
+        setDeploymentContracts(deploymentContractsMap[chainId]);
+      }
+    }
+    , [chainId]);
 
   const chartData = {
     labels: positions.map(
