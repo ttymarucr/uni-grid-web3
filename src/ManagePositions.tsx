@@ -91,7 +91,7 @@ const ManagePositions: React.FC = () => {
   const { contractAddress } = useParams<{ contractAddress: `0x${string}` }>();
   const { address, isConnected } = useAppKitAccount();
   const [deploymentContracts, setDeploymentContracts] =
-      useState<DeploymentContract>({} as DeploymentContract);
+    useState<DeploymentContract>({} as DeploymentContract);
   const [positions, setPositions] = useState<Position[]>([]);
   const [gridState, setGridState] = useState<GridState>({
     token0MinFees: 0n,
@@ -110,7 +110,7 @@ const ManagePositions: React.FC = () => {
     tick: 0,
   });
 
-  const chainId = useChainId({config});
+  const chainId = useChainId({ config });
 
   const {
     register: registerDeposit,
@@ -144,8 +144,19 @@ const ManagePositions: React.FC = () => {
     reset: resetGridStep,
   } = useForm();
 
+  const [displayInToken0, setDisplayInToken0] = useState(false);
+
+  const toggleDisplayToken = () => {
+    setDisplayInToken0((prev) => !prev);
+  };
+
   const fetchPositions = useCallback(async () => {
-    if (isConnected && address && contractAddress && deploymentContracts.uniswapV3PositionManager) {
+    if (
+      isConnected &&
+      address &&
+      contractAddress &&
+      deploymentContracts.uniswapV3PositionManager
+    ) {
       try {
         const [
           activePositionsResponse,
@@ -244,14 +255,14 @@ const ManagePositions: React.FC = () => {
                 ...position,
                 priceLower: tickToPrice(
                   position.tickLower,
-                  token0Meta.decimals,
-                  token1Meta.decimals
-                )[0],
+                  token1Meta.decimals,
+                  token0Meta.decimals
+                )[displayInToken0 ? 1 : 0],
                 priceUpper: tickToPrice(
                   position.tickUpper,
-                  token0Meta.decimals,
-                  token1Meta.decimals
-                )[0],
+                  token1Meta.decimals,
+                  token0Meta.decimals
+                )[displayInToken0 ? 1 : 0],
                 feesToken0: fromRawTokenAmount(feesToken0, token0Meta.decimals),
                 feesToken1: fromRawTokenAmount(feesToken1, token1Meta.decimals),
                 liquidityToken0: liq.amount0,
@@ -260,7 +271,11 @@ const ManagePositions: React.FC = () => {
             }
           );
           setPositions(
-            positionsWithFees.sort((a, b) => a.tickLower - b.tickLower)
+            positionsWithFees.sort((a, b) =>
+              displayInToken0
+                ? a.priceLower - b.priceLower
+                : a.priceUpper - b.priceUpper
+            )
           );
           setPool({
             address: poolInfo.pool,
@@ -293,7 +308,13 @@ const ManagePositions: React.FC = () => {
         console.error("Error fetching positions:", error);
       }
     }
-  }, [isConnected, address, contractAddress, deploymentContracts.uniswapV3PositionManager]);
+  }, [
+    isConnected,
+    address,
+    contractAddress,
+    deploymentContracts.uniswapV3PositionManager,
+    displayInToken0,
+  ]);
 
   const fetchTokenBalance = async (tokenAddress: string) => {
     if (!address || !isConnected) {
@@ -326,10 +347,23 @@ const ManagePositions: React.FC = () => {
 
   const liquidity = useCallback(
     () =>
-      fromRawTokenAmount(gridState.token0Liquidity, pool.token0.decimals) *
-        tickToPrice(pool.tick, pool.token0.decimals, pool.token1.decimals)[0] +
-      fromRawTokenAmount(gridState.token1Liquidity, pool.token1.decimals),
+      displayInToken0
+        ? fromRawTokenAmount(gridState.token1Liquidity, pool.token1.decimals) *
+            tickToPrice(
+              pool.tick,
+              pool.token1.decimals,
+              pool.token0.decimals
+            )[1] +
+          fromRawTokenAmount(gridState.token0Liquidity, pool.token0.decimals)
+        : fromRawTokenAmount(gridState.token0Liquidity, pool.token0.decimals) *
+            tickToPrice(
+              pool.tick,
+              pool.token1.decimals,
+              pool.token0.decimals
+            )[0] +
+          fromRawTokenAmount(gridState.token1Liquidity, pool.token1.decimals),
     [
+      displayInToken0,
       gridState.token0Liquidity,
       gridState.token1Liquidity,
       pool.tick,
@@ -341,13 +375,24 @@ const ManagePositions: React.FC = () => {
   const totalFees = useCallback(() => {
     return positions
       .reduce((sum, position) => {
+        const [token0Fees, token1Fees] = displayInToken0
+          ? [position.feesToken0, position.feesToken1]
+          : [position.feesToken1, position.feesToken0];
         const feesToken0InToken1 =
-          Number(position.feesToken0) *
-          tickToPrice(pool.tick, pool.token0.decimals, pool.token1.decimals)[0];
-        return sum + feesToken0InToken1 + Number(position.feesToken1);
+          Number(token1Fees) *
+          tickToPrice(pool.tick, pool.token1.decimals, pool.token0.decimals)[
+            displayInToken0 ? 1 : 0
+          ];
+        return sum + feesToken0InToken1 + Number(token0Fees);
       }, 0)
       .toFixed(2);
-  }, [positions, pool]);
+  }, [
+    positions,
+    displayInToken0,
+    pool.tick,
+    pool.token0.decimals,
+    pool.token1.decimals,
+  ]);
 
   const handleContractAction = async (
     functionName:
@@ -505,23 +550,26 @@ const ManagePositions: React.FC = () => {
   }, [gridState, resetGridQuantity, resetGridStep]);
 
   useEffect(() => {
-      if(chainId){ 
-        setDeploymentContracts(deploymentContractsMap[chainId]);
-      }
+    if (chainId) {
+      setDeploymentContracts(deploymentContractsMap[chainId]);
     }
-    , [chainId]);
+  }, [chainId]);
 
   const chartData = {
     labels: positions.map(
       (position) =>
-        `${position.priceLower.toFixed(2)} - ${position.priceUpper.toFixed(
-          2
-        )}`
+        `${position.priceLower.toFixed(displayInToken0 ? pool.token0.decimals : pool.token1.decimals)} - ${position.priceUpper.toFixed(displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}`
     ),
     datasets: [
       {
         label: "Liquidity",
-        data: positions.map((position) => Number(position.liquidityToken1)),
+        data: positions.map((position) =>
+          Number(
+            displayInToken0
+              ? position.liquidityToken0
+              : position.liquidityToken1
+          )
+        ),
         backgroundColor: "rgba(75, 192, 192, 0.6)",
         borderColor: "rgba(75, 192, 192, 1)",
         borderWidth: 1,
@@ -548,15 +596,6 @@ const ManagePositions: React.FC = () => {
             value: inRangePositionIndex,
             borderColor: "red",
             borderWidth: 2,
-            label: {
-              content: `"${tickToPrice(
-                pool.tick || 0,
-                pool.token0.decimals || 18,
-                pool.token1.decimals || 18
-              )[0].toFixed(2)}"`,
-              enabled: true,
-              position: "end",
-            },
           },
         },
       },
@@ -571,7 +610,9 @@ const ManagePositions: React.FC = () => {
       y: {
         title: {
           display: true,
-          text: `Liquidity (${pool.token1.symbol})`,
+          text: `Liquidity (${
+            displayInToken0 ? pool.token0.symbol : pool.token1.symbol
+          })`,
         },
         beginAtZero: true,
       },
@@ -599,8 +640,13 @@ const ManagePositions: React.FC = () => {
         >
           {gridState.isInRange ? "In Range" : "Not In Range"}
         </div>
-        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
-          Liquidity {liquidity().toFixed(2)}
+        <div className="green-card rounded flex justify-center items-center gap-2 mb-4 px-4 py-2">
+          Liquidity
+          {formatValue(
+            liquidity(),
+            displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+          )}{" "}
+          {displayInToken0 ? pool.token0.symbol : pool.token1.symbol}
         </div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
           Total Fees {totalFees()}
@@ -621,21 +667,28 @@ const ManagePositions: React.FC = () => {
               </a>{" "}
               {`${pool.fee / 10000}%`}
               <div className="flex float-right text-sm font-normal">
-              <button
-          onClick={fetchPositions}
-          className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
-        >
-          Refresh
-        </button>
+                <button
+                  onClick={fetchPositions}
+                  className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={toggleDisplayToken}
+                  className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
+                >
+                  Display in{" "}
+                  {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                </button>
               </div>
             </h2>
             <p>
               Current Price:{" "}
-              {tickToPrice(
+              {formatValue(tickToPrice(
                 pool.tick,
-                pool.token0.decimals,
-                pool.token1.decimals
-              )[0].toFixed(2)}
+                pool.token1.decimals,
+                pool.token0.decimals
+              )[displayInToken0 ? 1 : 0], displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}
             </p>
           </div>
         ) : (
@@ -1067,7 +1120,7 @@ const ManagePositions: React.FC = () => {
         <div className="grid grid-cols-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Position</div>
           <div>Price Range</div>
-          <div>Liquidity ({pool.token1.symbol})</div>
+          <div>Liquidity</div>
           <div>Uncollected Fees</div>
         </div>
         {positions.map((position, index) => {
@@ -1094,13 +1147,23 @@ const ManagePositions: React.FC = () => {
                 </a>
               </div>
               <div>
-                {position.priceLower.toFixed(2)}{" "}-{" "}
-                {position.priceUpper.toFixed(2)}
+                {formatValue(position.priceLower, displayInToken0 ? pool.token0.decimals : pool.token1.decimals)} -{" "}
+                {formatValue(position.priceUpper, displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}
               </div>
-              <div>{position.liquidityToken1.toFixed(2)}</div>
               <div>
-                <p className="truncate">{formatValue(position.feesToken0, pool.token0.decimals)} {pool.token0.symbol}</p>
-                <p className="truncate">{formatValue(position.feesToken1, pool.token1.decimals)} {pool.token1.symbol}</p>
+                {displayInToken0
+                  ? formatValue(position.liquidityToken0,displayInToken0 ? pool.token0.decimals : pool.token1.decimals)
+                  : formatValue(position.liquidityToken1, displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}
+              </div>
+              <div>
+                <p className="truncate">
+                  {formatValue(position.feesToken0, pool.token0.decimals)}{" "}
+                  {pool.token0.symbol}
+                </p>
+                <p className="truncate">
+                  {formatValue(position.feesToken1, pool.token1.decimals)}{" "}
+                  {pool.token1.symbol}
+                </p>
               </div>
             </div>
           );

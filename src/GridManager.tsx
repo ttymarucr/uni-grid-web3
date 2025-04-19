@@ -332,12 +332,12 @@ const GridManager = () => {
           return;
         }
         try {
-          const pool = await readContract(config, {
+          const pool = (await readContract(config, {
             address: deploymentContracts.uniswapV3Factory,
             abi: IUniswapV3FactoryABI,
             functionName: "getPool",
             args: [selectedToken0, selectedToken1, feeTier],
-          }) as string;
+          })) as string;
 
           if (pool === "0x0000000000000000000000000000000000000000" || !pool) {
             toast.error("No pool found for the selected tokens.");
