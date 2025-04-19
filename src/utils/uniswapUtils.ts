@@ -1,6 +1,21 @@
 import JSBI from "jsbi";
-import { Fraction } from "@uniswap/sdk-core";
-import { TickMath, SqrtPriceMath } from "@uniswap/v3-sdk";
+import { Fraction, Price, Token } from "@uniswap/sdk-core";
+import {
+  TickMath,
+  SqrtPriceMath,
+  encodeSqrtRatioX96,
+  tickToPrice as tickToPriceUni,
+  nearestUsableTick,
+} from "@uniswap/v3-sdk";
+
+// constants used internally but not expected to be used externally
+export const NEGATIVE_ONE = JSBI.BigInt(-1);
+export const ZERO = JSBI.BigInt(0);
+export const ONE = JSBI.BigInt(1);
+
+// used in liquidity amount math
+export const Q96 = JSBI.exponentiate(JSBI.BigInt(2), JSBI.BigInt(96));
+export const Q192 = JSBI.exponentiate(Q96, JSBI.BigInt(2));
 
 /**
  * Converts liquidity into token amounts.
@@ -76,6 +91,58 @@ export const tickToPrice = (
   token1Decimals: number
 ): [number, number] => {
   const tickRatio = Math.pow(1.0001, tick);
-  const price = tickRatio / Math.pow(10, token1Decimals - token0Decimals);
+  const price = tickRatio / Math.pow(10, token0Decimals - token1Decimals);
   return [price, 1 / price];
 };
+
+export function tickToPriceUtils(
+  baseToken: Token,
+  quoteToken: Token,
+  tick: number
+): Price<Token, Token> {
+  const sqrtRatioX96 = TickMath.getSqrtRatioAtTick(tick);
+  const ratioX192 = JSBI.multiply(sqrtRatioX96, sqrtRatioX96);
+
+  return baseToken.sortsBefore(quoteToken)
+    ? new Price(baseToken, quoteToken, Q192.toString(), ratioX192.toString())
+    : new Price(baseToken, quoteToken, ratioX192.toString(), Q192.toString());
+}
+
+export const priceToTick = (
+  baseToken: Token,
+  quoteToken: Token,
+  token1Price: number,
+  tickSpacing: number
+): number => {
+  const tick = Math.floor(
+    Math.log(
+      (1 * 10 ** quoteToken.decimals) / (token1Price * 10 ** baseToken.decimals)
+    ) / Math.log(1.0001)
+  );
+  return nearestUsableTick(tick, tickSpacing);
+};
+
+export function priceToClosestTickUtils(price: Price<Token, Token>): number {
+  const sorted = price.baseCurrency.sortsBefore(price.quoteCurrency);
+
+  const sqrtRatioX96 = sorted
+    ? encodeSqrtRatioX96(price.numerator, price.denominator)
+    : encodeSqrtRatioX96(price.denominator, price.numerator);
+
+  let tick = TickMath.getTickAtSqrtRatio(sqrtRatioX96);
+  const nextTickPrice = tickToPriceUtils(
+    price.baseCurrency,
+    price.quoteCurrency,
+    tick + 1
+  );
+  if (sorted) {
+    if (!price.lessThan(nextTickPrice)) {
+      tick++;
+    }
+  } else {
+    if (!price.greaterThan(nextTickPrice)) {
+      tick++;
+    }
+  }
+  return tick;
+}

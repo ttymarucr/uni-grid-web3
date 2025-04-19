@@ -2,12 +2,14 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   GridManagerABI,
   GridPositionManagerABI,
+  IERC20MetadataABI,
   IUniswapV3FactoryABI,
+  IUniswapV3PoolABI,
 } from "./abis";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLogs } from "viem/actions";
-import { config, deploymentContractsMap, trustedTokensMap,  } from "./config";
+import { config, deploymentContractsMap, trustedTokensMap } from "./config";
 import {
   getPublicClient,
   multicall,
@@ -18,28 +20,46 @@ import { parseAbiItem } from "viem";
 import { toast } from "react-toastify";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { DeploymentContract, GridDeployment, PoolInfo, TrustedToken } from "./types";
-import { fromRawTokenAmount } from "./utils/uniswapUtils";
+import {
+  DeploymentContract,
+  GridDeployment,
+  PoolInfo,
+  TrustedToken,
+} from "./types";
+import {
+  fromRawTokenAmount,
+  priceToTick,
+  tickToPrice,
+} from "./utils/uniswapUtils";
 import { useChainId } from "wagmi";
+import Collapse from "./components/collapse/Collapse";
+import { Token } from "@uniswap/sdk-core";
 
 const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 
 const GridManager = () => {
   const { address, isConnected } = useAppKitAccount();
   const client = getPublicClient(config);
-  const [deployments, setDeployments] = useState<GridDeployment[]>([]);
-  const [trustedTokens, setTrustedTokens] = useState<
-    TrustedToken[]
-  >([]);
+  const [openGrids, setOpenGrids] = useState<GridDeployment[]>([]);
+  const [exitedGrids, setExitedGrids] = useState<GridDeployment[]>([]);
+  const [trustedTokens, setTrustedTokens] = useState<TrustedToken[]>([]);
   const [deploymentContracts, setDeploymentContracts] =
     useState<DeploymentContract>({} as DeploymentContract);
-  const [selectedToken0, setSelectedToken0] = useState();
-  const [selectedToken1, setSelectedToken1] = useState();
+  const [selectedToken0, setSelectedToken0] = useState<string>();
+  const [selectedToken1, setSelectedToken1] = useState<string>();
+  const [token0, setToken0] = useState<Token>();
+  const [token1, setToken1] = useState<Token>();
   const [feeTier, setFeeTier] = useState(3000); // Example: 0.3% fee tier
-  const [poolAddress, setPoolAddress] = useState();
+  const [poolAddress, setPoolAddress] = useState<string>();
 
   const [isOwner, setIsOwner] = useState(false);
   const [newImplementation, setNewImplementation] = useState("");
+
+  const [displayInToken0, setDisplayInToken0] = useState(false);
+
+  const toggleDisplayToken = () => {
+    setDisplayInToken0((prev) => !prev);
+  };
 
   const { data: gridDeploymentLogs, refetch } = useQuery({
     queryKey: ["logs", isConnected, address],
@@ -59,7 +79,7 @@ const GridManager = () => {
     },
   });
 
-  const chainId = useChainId({config});
+  const chainId = useChainId({ config });
 
   const fetchPoolInfo = useCallback(async () => {
     if (!gridDeploymentLogs?.length) return;
@@ -100,7 +120,16 @@ const GridManager = () => {
         } as unknown as GridDeployment;
       });
       const deployments = await Promise.all(deploymentPromises);
-      setDeployments(deployments);
+      const openGrids = deployments.filter(
+        (deployment) =>
+          deployment.token0Liquidity > 0 && deployment.token1Liquidity > 0
+      );
+      const exitedGrids = deployments.filter(
+        (deployment) =>
+          !deployment.token0Liquidity && !deployment.token1Liquidity
+      );
+      setOpenGrids(openGrids);
+      setExitedGrids(exitedGrids);
     } catch (error) {
       console.error(`Error fetching pool info with multicall:`, error);
     }
@@ -110,18 +139,61 @@ const GridManager = () => {
     fetchPoolInfo();
   }, [fetchPoolInfo]);
 
-  const { register, handleSubmit, reset } = useForm({
+  const { register, handleSubmit, reset, setValue } = useForm({
     defaultValues: {
       pool: "",
       gridSize: 0,
       gridStep: 0,
+      priceLower: "",
+      priceUpper: "",
     },
   });
 
-  const deployGrid = async (gridSize: number, gridStep: number) => {
+  const deployGrid = async (
+    gridSize: number,
+    priceLower: string,
+    priceUpper: string
+  ) => {
     try {
-      if (!poolAddress) {
+      if (!poolAddress || !token0 || !token1) {
         toast.error("Please select a valid token pair.");
+        return;
+      }
+      if (!priceLower || !priceUpper) {
+        toast.error("Please provide a valid price range.");
+        return;
+      }
+      if (gridSize <= 0) {
+        toast.error("Grid size must be greater than 0.");
+        return;
+      }
+      if (Number(priceLower) >= Number(priceUpper)) {
+        toast.error("Price lower must be less than price upper.");
+        return;
+      }
+      const tickSpacing = (await readContract(config, {
+        address: poolAddress,
+        abi: IUniswapV3PoolABI,
+        functionName: "tickSpacing",
+      })) as number;
+      const lowerTick =
+        priceToTick(
+          displayInToken0 ? token0 : token1,
+          displayInToken0 ? token1 : token0,
+          Number(priceLower),
+          tickSpacing
+        ) * (displayInToken0 ? -1 : 1);
+      const upperTick =
+        priceToTick(
+          displayInToken0 ? token0 : token1,
+          displayInToken0 ? token1 : token0,
+          Number(priceUpper),
+          tickSpacing
+        ) * (displayInToken0 ? -1 : 1);
+      const tickRange = Math.floor(Math.abs(upperTick - lowerTick));
+      const gridStep = Math.floor(tickRange / gridSize);
+      if (gridStep < 1) {
+        toast.error("Price range is too small for the grid size.");
         return;
       }
       const hash = await writeContract(config, {
@@ -144,8 +216,12 @@ const GridManager = () => {
     }
   };
 
-  const onSubmit = (data: { gridSize: number; gridStep: number }) => {
-    deployGrid(data.gridSize, data.gridStep);
+  const onSubmit = (data: {
+    gridSize: number;
+    priceLower: string;
+    priceUpper: string;
+  }) => {
+    deployGrid(data.gridSize, data.priceLower, data.priceUpper);
   };
 
   const checkOwnership = useCallback(async () => {
@@ -168,14 +244,91 @@ const GridManager = () => {
   }, [checkOwnership]);
 
   useEffect(() => {
+    const fetchTokenMetadata = async () => {
+      if (selectedToken0 && selectedToken1 && poolAddress) {
+        const [poolToken0Call, token0DecimalsCall, token1DecimalsCall] =
+          await multicall(config, {
+            contracts: [
+              {
+                address: poolAddress,
+                abi: IUniswapV3PoolABI,
+                functionName: "token0",
+              },
+              {
+                address: selectedToken0,
+                abi: IERC20MetadataABI,
+                functionName: "decimals",
+              },
+              {
+                address: selectedToken1,
+                abi: IERC20MetadataABI,
+                functionName: "decimals",
+              },
+            ],
+          });
+        if (
+          token0DecimalsCall.status === "success" &&
+          token1DecimalsCall.status === "success" &&
+          poolToken0Call.status === "success"
+        ) {
+          const token0Decimals = token0DecimalsCall.result as number;
+          const token1Decimals = token1DecimalsCall.result as number;
+          const poolToken0 = poolToken0Call.result as string;
+          if (poolToken0.toLowerCase() === selectedToken1.toLowerCase()) {
+            setToken0(new Token(chainId, selectedToken0, token0Decimals));
+            setToken1(new Token(chainId, selectedToken1, token1Decimals));
+          } else {
+            setToken0(new Token(chainId, selectedToken1, token1Decimals));
+            setToken1(new Token(chainId, selectedToken0, token0Decimals));
+          }
+          setDisplayInToken0(false);
+        }
+      }
+    };
+    fetchTokenMetadata();
+  }, [chainId, poolAddress, selectedToken0, selectedToken1]);
+
+  useEffect(() => {
+    const getStartPrice = async () => {
+      if (poolAddress && token0 && token1) {
+        const slot0 = await readContract(config, {
+          address: poolAddress,
+          abi: IUniswapV3PoolABI,
+          functionName: "slot0",
+        });
+
+        const currentTick = slot0[1] as number;
+        const [token0Price, token1Price] = tickToPrice(
+          currentTick,
+          token0.decimals,
+          token1.decimals
+        );
+        const startPrice = displayInToken0
+          ? token0Price.toFixed(token0.decimals)
+          : token1Price.toFixed(token1.decimals);
+        setValue("priceLower", startPrice);
+        setValue("priceUpper", startPrice);
+      } else {
+        setValue("priceLower", "");
+        setValue("priceUpper", "");
+      }
+    };
+    getStartPrice();
+  }, [chainId, displayInToken0, poolAddress, setValue, token0, token1]);
+
+  useEffect(() => {
     if (selectedToken0 && selectedToken1 && feeTier) {
       const fetchPoolAddress = async () => {
         if (selectedToken0 === selectedToken1) {
           setPoolAddress(undefined);
+          setToken0(undefined);
+          setToken1(undefined);
           return;
         }
-        if(selectedToken0 === "" || selectedToken1 === "") {
+        if (selectedToken0 === "" || selectedToken1 === "") {
           setPoolAddress(undefined);
+          setToken0(undefined);
+          setToken1(undefined);
           return;
         }
         try {
@@ -184,13 +337,14 @@ const GridManager = () => {
             abi: IUniswapV3FactoryABI,
             functionName: "getPool",
             args: [selectedToken0, selectedToken1, feeTier],
-          });
+          }) as string;
 
           if (pool === "0x0000000000000000000000000000000000000000" || !pool) {
             toast.error("No pool found for the selected tokens.");
-          } else {
+          } else if (pool !== poolAddress) {
             setPoolAddress(pool);
-            toast.success(`Pool Address: ${pool}`);
+            setToken0(undefined);
+            setToken1(undefined);
           }
         } catch (error) {
           toast.error(
@@ -202,23 +356,31 @@ const GridManager = () => {
       fetchPoolAddress();
     } else {
       setPoolAddress(undefined);
+      setToken0(undefined);
+      setToken1(undefined);
     }
-  }, [deploymentContracts.uniswapV3Factory, feeTier, selectedToken0, selectedToken1]);
+  }, [
+    chainId,
+    deploymentContracts.uniswapV3Factory,
+    feeTier,
+    poolAddress,
+    selectedToken0,
+    selectedToken1,
+    setValue,
+  ]);
 
   useEffect(() => {
-    if(chainId){ 
+    if (chainId) {
       setTrustedTokens(trustedTokensMap[chainId]);
       setDeploymentContracts(deploymentContractsMap[chainId]);
     }
-  }
-  , [chainId]);
+  }, [chainId]);
 
   useEffect(() => {
-    if(deploymentContracts.gridManager){
+    if (deploymentContracts.gridManager) {
       refetch();
     }
-  }
-  , [deploymentContracts.gridManager, refetch]);
+  }, [deploymentContracts.gridManager, refetch]);
 
   const upgradeTo = async () => {
     if (!newImplementation) {
@@ -255,9 +417,15 @@ const GridManager = () => {
                 onChange={(e) => setSelectedToken0(e.target.value)}
                 className="border p-2 rounded w-full"
               >
-                <option value="" className="bg-gray-400 text-gray-800">Select Token 0</option>
+                <option value="" className="bg-gray-400 text-gray-800">
+                  Select Token 0
+                </option>
                 {trustedTokens.map((token) => (
-                  <option key={token.address} value={token.address} className="bg-gray-400 text-gray-800">
+                  <option
+                    key={token.address}
+                    value={token.address}
+                    className="bg-gray-400 text-gray-800"
+                  >
                     {token.symbol}
                   </option>
                 ))}
@@ -270,9 +438,15 @@ const GridManager = () => {
                 onChange={(e) => setSelectedToken1(e.target.value)}
                 className="border p-2 rounded w-full"
               >
-                <option value="" className="bg-gray-400 text-gray-800">Select Token 1</option>
+                <option value="" className="bg-gray-400 text-gray-800">
+                  Select Token 1
+                </option>
                 {trustedTokens.map((token) => (
-                  <option key={token.address} value={token.address} className="bg-gray-400 text-gray-800">
+                  <option
+                    key={token.address}
+                    value={token.address}
+                    className="bg-gray-400 text-gray-800"
+                  >
                     {token.symbol}
                   </option>
                 ))}
@@ -286,8 +460,12 @@ const GridManager = () => {
                 className="border p-2 rounded w-full"
               >
                 {UNISWAP_FEE_TIERS.map((token) => (
-                  <option key={token} value={token} className="bg-gray-400 text-gray-800">
-                    {token /10000}%
+                  <option
+                    key={token}
+                    value={token}
+                    className="bg-gray-400 text-gray-800"
+                  >
+                    {token / 10000}%
                   </option>
                 ))}
               </select>
@@ -305,14 +483,30 @@ const GridManager = () => {
               />
             </div>
             <div>
-              <label className="block font-medium">Grid Step</label>
+              {selectedToken0 && selectedToken1 && (
+                <span
+                  onClick={toggleDisplayToken}
+                  className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
+                >
+                  Toggle Price
+                </span>
+              )}
+            </div>
+            <div>
+              <label className="block font-medium">Price Lower</label>
               <input
-                {...register("gridStep", {
-                  required: true,
-                  valueAsNumber: true,
-                })}
-                type="number"
-                placeholder="Grid Step"
+                {...register("priceLower", { required: true })}
+                type="text"
+                placeholder="Price Lower"
+                className="border p-2 rounded w-full"
+              />
+            </div>
+            <div>
+              <label className="block font-medium">Price Upper</label>
+              <input
+                {...register("priceUpper", { required: true })}
+                type="text"
+                placeholder="Price Upper"
                 className="border p-2 rounded w-full"
               />
             </div>
@@ -351,16 +545,64 @@ const GridManager = () => {
           )}
         </div>
         <div className="md:col-span-2">
-          <h2 className="text-xl font-bold mb-4">Deployments</h2>
-          <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
-            {deployments?.length ? (
+          <Collapse title="Open Grids" open={true}>
+            <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
+              {openGrids?.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {openGrids.map((deployment) => (
+                    <Link
+                      to={`/manage/${deployment.grid}`}
+                      key={`${deployment.grid}`}
+                    >
+                      <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white">
+                        <p>
+                          <strong>Pool:</strong> ({deployment.token0Symbol}/
+                          {deployment.token1Symbol}){" "}
+                          {(deployment.fee / 10000).toFixed(2)}%
+                        </p>
+                        <p>
+                          <strong>Liquidity:</strong>
+                        </p>
+                        <p>
+                          {fromRawTokenAmount(
+                            deployment.token0Liquidity,
+                            deployment.token0Decimals
+                          ).toFixed(6)}{" "}
+                          {deployment.token0Symbol} /{" "}
+                          {fromRawTokenAmount(
+                            deployment.token1Liquidity,
+                            deployment.token1Decimals
+                          ).toFixed(6)}{" "}
+                          {deployment.token1Symbol}
+                        </p>
+                        <p>
+                          <strong>Steps:</strong> {deployment.gridStep}
+                        </p>
+                        <p>
+                          <strong>Grids:</strong> {deployment.gridQuantity}
+                        </p>
+                        <p>
+                          <strong>InRange:</strong>{" "}
+                          {deployment.isInRange ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p>No grids found.</p>
+              )}
+            </div>
+          </Collapse>
+          <Collapse title="Exited Grids">
+            <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {deployments.map((deployment) => (
+                {exitedGrids.map((deployment) => (
                   <Link
                     to={`/manage/${deployment.grid}`}
                     key={`${deployment.grid}`}
                   >
-                    <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white">
+                    <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white text-gray-500">
                       <p>
                         <strong>Pool:</strong> ({deployment.token0Symbol}/
                         {deployment.token1Symbol}){" "}
@@ -395,10 +637,8 @@ const GridManager = () => {
                   </Link>
                 ))}
               </div>
-            ) : (
-              <p>No deployments found.</p>
-            )}
-          </div>
+            </div>
+          </Collapse>
         </div>
       </div>
     </div>
