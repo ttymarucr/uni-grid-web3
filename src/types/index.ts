@@ -73,9 +73,7 @@ export interface DeploymentContract {
   gridManager: `0x${string}`;
   uniswapV3PositionManager: `0x${string}`;
   uniswapV3Factory: `0x${string}`;
-}
-export interface TrustedTokensMap {
-  [key: string]: TrustedToken[];
+  subgraphId: string;
 }
 
 export interface DeploymentContractsMap {

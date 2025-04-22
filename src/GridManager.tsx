@@ -9,7 +9,7 @@ import {
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLogs } from "viem/actions";
-import { config, deploymentContractsMap, trustedTokensMap } from "./config";
+import { config, deploymentContractsMap } from "./config";
 import {
   getPublicClient,
   multicall,
@@ -17,15 +17,11 @@ import {
   writeContract,
 } from "@wagmi/core";
 import { parseAbiItem } from "viem";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import {
-  DeploymentContract,
-  GridDeployment,
-  PoolInfo,
-  TrustedToken,
-} from "./types";
+import { Token } from "@uniswap/sdk-core";
+import { DeploymentContract, GridDeployment, PoolInfo } from "./types";
 import {
   fromRawTokenAmount,
   priceToTick,
@@ -33,7 +29,7 @@ import {
 } from "./utils/uniswapUtils";
 import { useChainId } from "wagmi";
 import Collapse from "./components/collapse/Collapse";
-import { Token } from "@uniswap/sdk-core";
+import TokenSearchDropdown from "./components/TokenSearchDropdown/TokenSearchDropdown";
 
 const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 
@@ -42,7 +38,6 @@ const GridManager = () => {
   const client = getPublicClient(config);
   const [openGrids, setOpenGrids] = useState<GridDeployment[]>([]);
   const [exitedGrids, setExitedGrids] = useState<GridDeployment[]>([]);
-  const [trustedTokens, setTrustedTokens] = useState<TrustedToken[]>([]);
   const [deploymentContracts, setDeploymentContracts] =
     useState<DeploymentContract>({} as DeploymentContract);
   const [selectedToken0, setSelectedToken0] = useState<string>();
@@ -122,7 +117,7 @@ const GridManager = () => {
       const deployments = await Promise.all(deploymentPromises);
       const openGrids = deployments.filter(
         (deployment) =>
-          deployment.token0Liquidity > 0 && deployment.token1Liquidity > 0
+          deployment.token0Liquidity > 0 || deployment.token1Liquidity > 0
       );
       const exitedGrids = deployments.filter(
         (deployment) =>
@@ -130,8 +125,9 @@ const GridManager = () => {
       );
       setOpenGrids(openGrids);
       setExitedGrids(exitedGrids);
+      toast.success("Grids fetched successfully.");
     } catch (error) {
-      console.error(`Error fetching pool info with multicall:`, error);
+      console.error(`Error fetching grids with multicall:`, error);
     }
   }, [gridDeploymentLogs]);
 
@@ -142,7 +138,7 @@ const GridManager = () => {
   const { register, handleSubmit, reset, setValue } = useForm({
     defaultValues: {
       pool: "",
-      gridSize: 0,
+      gridSize: 2,
       gridStep: 0,
       priceLower: "",
       priceUpper: "",
@@ -338,7 +334,6 @@ const GridManager = () => {
             functionName: "getPool",
             args: [selectedToken0, selectedToken1, feeTier],
           })) as string;
-
           if (pool === "0x0000000000000000000000000000000000000000" || !pool) {
             toast.error("No pool found for the selected tokens.");
           } else if (pool !== poolAddress) {
@@ -371,7 +366,6 @@ const GridManager = () => {
 
   useEffect(() => {
     if (chainId) {
-      setTrustedTokens(trustedTokensMap[chainId]);
       setDeploymentContracts(deploymentContractsMap[chainId]);
     }
   }, [chainId]);
@@ -412,45 +406,17 @@ const GridManager = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block font-medium">Token 0</label>
-              <select
+              <TokenSearchDropdown
                 value={selectedToken0}
-                onChange={(e) => setSelectedToken0(e.target.value)}
-                className="border p-2 rounded w-full"
-              >
-                <option value="" className="bg-gray-400 text-gray-800">
-                  Select Token 0
-                </option>
-                {trustedTokens.map((token) => (
-                  <option
-                    key={token.address}
-                    value={token.address}
-                    className="bg-gray-400 text-gray-800"
-                  >
-                    {token.symbol}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedToken0}
+              />
             </div>
             <div>
               <label className="block font-medium">Token 1</label>
-              <select
+              <TokenSearchDropdown
                 value={selectedToken1}
-                onChange={(e) => setSelectedToken1(e.target.value)}
-                className="border p-2 rounded w-full"
-              >
-                <option value="" className="bg-gray-400 text-gray-800">
-                  Select Token 1
-                </option>
-                {trustedTokens.map((token) => (
-                  <option
-                    key={token.address}
-                    value={token.address}
-                    className="bg-gray-400 text-gray-800"
-                  >
-                    {token.symbol}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedToken1}
+              />
             </div>
             <div>
               <label className="block font-medium">Fee Tier</label>
@@ -545,6 +511,12 @@ const GridManager = () => {
           )}
         </div>
         <div className="md:col-span-2">
+          <button
+            onClick={() => fetchPoolInfo()}
+            className="bg-gray-900 text-white px-4 py-2 rounded mt-4 mb-4 hover:cursor-pointer"
+          >
+            Refresh
+          </button>
           <Collapse title="Open Grids" open={true}>
             <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
               {openGrids?.length ? (
@@ -641,6 +613,7 @@ const GridManager = () => {
           </Collapse>
         </div>
       </div>
+      <ToastContainer />
     </div>
   );
 };

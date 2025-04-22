@@ -558,7 +558,11 @@ const ManagePositions: React.FC = () => {
   const chartData = {
     labels: positions.map(
       (position) =>
-        `${position.priceLower.toFixed(displayInToken0 ? pool.token0.decimals : pool.token1.decimals)} - ${position.priceUpper.toFixed(displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}`
+        `${position.priceLower.toFixed(
+          displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+        )} - ${position.priceUpper.toFixed(
+          displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+        )}`
     ),
     datasets: [
       {
@@ -684,11 +688,14 @@ const ManagePositions: React.FC = () => {
             </h2>
             <p>
               Current Price:{" "}
-              {formatValue(tickToPrice(
-                pool.tick,
-                pool.token1.decimals,
-                pool.token0.decimals
-              )[displayInToken0 ? 1 : 0], displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}
+              {formatValue(
+                tickToPrice(
+                  pool.tick,
+                  pool.token1.decimals,
+                  pool.token0.decimals
+                )[displayInToken0 ? 1 : 0],
+                displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+              )}
             </p>
           </div>
         ) : (
@@ -1147,13 +1154,30 @@ const ManagePositions: React.FC = () => {
                 </a>
               </div>
               <div>
-                {formatValue(position.priceLower, displayInToken0 ? pool.token0.decimals : pool.token1.decimals)} -{" "}
-                {formatValue(position.priceUpper, displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}
+                {formatValue(
+                  position.priceLower,
+                  displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+                )}{" "}
+                -{" "}
+                {formatValue(
+                  position.priceUpper,
+                  displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+                )}
               </div>
               <div>
                 {displayInToken0
-                  ? formatValue(position.liquidityToken0,displayInToken0 ? pool.token0.decimals : pool.token1.decimals)
-                  : formatValue(position.liquidityToken1, displayInToken0 ? pool.token0.decimals : pool.token1.decimals)}
+                  ? formatValue(
+                      position.liquidityToken0,
+                      displayInToken0
+                        ? pool.token0.decimals
+                        : pool.token1.decimals
+                    )
+                  : formatValue(
+                      position.liquidityToken1,
+                      displayInToken0
+                        ? pool.token0.decimals
+                        : pool.token1.decimals
+                    )}
               </div>
               <div>
                 <p className="truncate">
