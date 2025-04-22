@@ -26,7 +26,7 @@ const TokenSearchDropdown = ({ value, onChange }) => {
   });
 
   const { data, fetching, error } = queryResult;
-  const tokens = data?.tokens || [];
+  const tokens = React.useMemo(() => data?.tokens || [], [data]);
 
   const valueToDisplay = useCallback(() => {
     if (value) {

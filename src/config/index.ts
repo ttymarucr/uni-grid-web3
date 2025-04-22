@@ -12,7 +12,7 @@ export const config = createConfig({
       "https://base-mainnet.g.alchemy.com/v2/_zTD3BWOgxR-BQ1lHisJL86d8LP8XBaF"
     ),
     [arbitrum.id]: http(
-      "https://arbitrum-mainnet.g.alchemy.com/v2/_zTD3BWOgxR-BQ1lHisJL86d8LP8XBaF"
+      "https://arb-mainnet.g.alchemy.com/v2/_zTD3BWOgxR-BQ1lHisJL86d8LP8XBaF"
     ),
   },
 });

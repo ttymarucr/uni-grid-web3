@@ -43,7 +43,7 @@ import {
   tickToPrice,
   toRawTokenAmount,
 } from "./utils/uniswapUtils";
-import Collapse from "./components/collapse/Collapse";
+import Collapse from "./components/Collapse";
 import { useChainId } from "wagmi";
 
 // Register Chart.js components to avoid re-registration issues

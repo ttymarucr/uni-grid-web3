@@ -28,8 +28,8 @@ import {
   tickToPrice,
 } from "./utils/uniswapUtils";
 import { useChainId } from "wagmi";
-import Collapse from "./components/collapse/Collapse";
-import TokenSearchDropdown from "./components/TokenSearchDropdown/TokenSearchDropdown";
+import Collapse from "./components/Collapse";
+import TokenSearchDropdown from "./components/TokenSearchDropdown";
 
 const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 
@@ -46,35 +46,51 @@ const GridManager = () => {
   const [token1, setToken1] = useState<Token>();
   const [feeTier, setFeeTier] = useState(3000); // Example: 0.3% fee tier
   const [poolAddress, setPoolAddress] = useState<string>();
-
+  const [currentPrice, setCurrentPrice] = useState<string>();
   const [isOwner, setIsOwner] = useState(false);
   const [newImplementation, setNewImplementation] = useState("");
 
   const [displayInToken0, setDisplayInToken0] = useState(false);
 
+  const chainId = useChainId({ config });
+
   const toggleDisplayToken = () => {
     setDisplayInToken0((prev) => !prev);
   };
 
-  const { data: gridDeploymentLogs, refetch } = useQuery({
-    queryKey: ["logs", isConnected, address],
-    queryFn: async () => {
-      if (!isConnected || !deploymentContracts.gridManager) return [];
-      const logs = await getLogs(client, {
-        address: deploymentContracts.gridManager,
-        event: parseAbiItem(
-          "event GridDeployed(address indexed owner, address indexed gridPositionManager, address pool)"
-        ),
-        args: {
-          owner: address,
-        },
-        fromBlock: 0n,
-      });
-      return logs.map(({ args }) => ({ ...args }));
+  const { register, handleSubmit, reset, setValue } = useForm({
+    defaultValues: {
+      pool: "",
+      gridSize: 2,
+      gridStep: 0,
+      priceLower: "",
+      priceUpper: "",
     },
   });
 
-  const chainId = useChainId({ config });
+  const logsQuery = useCallback(async () => {
+    if (!isConnected || !deploymentContracts.gridManager) return [];
+    const logs = await getLogs(client, {
+      address: deploymentContracts.gridManager,
+      event: parseAbiItem(
+        "event GridDeployed(address indexed owner, address indexed gridPositionManager, address pool)"
+      ),
+      args: {
+        owner: address,
+      },
+      fromBlock: 0n,
+    });
+    return logs.map(({ args }) => ({ ...args }));
+  }, [address, client, deploymentContracts.gridManager, isConnected]);
+
+  const {
+    data: gridDeploymentLogs,
+    isLoading: isLogsLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["logs", isConnected, address],
+    queryFn: logsQuery,
+  });
 
   const fetchPoolInfo = useCallback(async () => {
     if (!gridDeploymentLogs?.length) return;
@@ -131,19 +147,34 @@ const GridManager = () => {
     }
   }, [gridDeploymentLogs]);
 
+  const calculatePricePercentage = useCallback(
+    (percentage: number) => {
+      {
+        if (currentPrice) {
+          const price = parseFloat(currentPrice);
+          if (!isNaN(price)) {
+            const calculatedValue = (price * percentage) / 100;
+            const decimals = displayInToken0
+              ? token0?.decimals
+              : token1?.decimals;
+            setValue("priceLower", (price - calculatedValue).toFixed(decimals));
+            setValue("priceUpper", (price + calculatedValue).toFixed(decimals));
+          }
+        }
+      }
+    },
+    [
+      currentPrice,
+      displayInToken0,
+      setValue,
+      token0?.decimals,
+      token1?.decimals,
+    ]
+  );
+
   useEffect(() => {
     fetchPoolInfo();
   }, [fetchPoolInfo]);
-
-  const { register, handleSubmit, reset, setValue } = useForm({
-    defaultValues: {
-      pool: "",
-      gridSize: 2,
-      gridStep: 0,
-      priceLower: "",
-      priceUpper: "",
-    },
-  });
 
   const deployGrid = async (
     gridSize: number,
@@ -285,7 +316,7 @@ const GridManager = () => {
   }, [chainId, poolAddress, selectedToken0, selectedToken1]);
 
   useEffect(() => {
-    const getStartPrice = async () => {
+    const getCurrentPrice = async () => {
       if (poolAddress && token0 && token1) {
         const slot0 = await readContract(config, {
           address: poolAddress,
@@ -304,12 +335,13 @@ const GridManager = () => {
           : token1Price.toFixed(token1.decimals);
         setValue("priceLower", startPrice);
         setValue("priceUpper", startPrice);
+        setCurrentPrice(startPrice);
       } else {
         setValue("priceLower", "");
         setValue("priceUpper", "");
       }
     };
-    getStartPrice();
+    getCurrentPrice();
   }, [chainId, displayInToken0, poolAddress, setValue, token0, token1]);
 
   useEffect(() => {
@@ -373,6 +405,8 @@ const GridManager = () => {
   useEffect(() => {
     if (deploymentContracts.gridManager) {
       refetch();
+      setOpenGrids([]);
+      setExitedGrids([]);
     }
   }, [deploymentContracts.gridManager, refetch]);
 
@@ -450,12 +484,15 @@ const GridManager = () => {
             </div>
             <div>
               {selectedToken0 && selectedToken1 && (
-                <span
-                  onClick={toggleDisplayToken}
-                  className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
-                >
-                  Toggle Price
-                </span>
+                <div>
+                  <span
+                    onClick={toggleDisplayToken}
+                    className="mr-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
+                  >
+                    Toggle Price
+                  </span>
+                  <span>Current Price: {currentPrice}</span>
+                </div>
               )}
             </div>
             <div>
@@ -475,6 +512,20 @@ const GridManager = () => {
                 placeholder="Price Upper"
                 className="border p-2 rounded w-full"
               />
+            </div>
+            <div>
+              <div className="flex space-x-2">
+                {[1, 3, 5, 10].map((percentage) => (
+                  <button
+                    key={percentage}
+                    type="button"
+                    onClick={() => calculatePricePercentage(percentage)}
+                    className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded"
+                  >
+                    {percentage}%
+                  </button>
+                ))}
+              </div>
             </div>
             <button
               type="submit"
@@ -512,59 +563,63 @@ const GridManager = () => {
         </div>
         <div className="md:col-span-2">
           <button
-            onClick={() => fetchPoolInfo()}
-            className="bg-gray-900 text-white px-4 py-2 rounded mt-4 mb-4 hover:cursor-pointer"
+            onClick={() => refetch()}
+            className="bg-gray-900 text-white px-4 py-2 rounded mt-4 mb-4 hover:cursor-pointer hover:bg-gray-800"
           >
             Refresh
           </button>
           <Collapse title="Open Grids" open={true}>
-            <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
-              {openGrids?.length ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {openGrids.map((deployment) => (
-                    <Link
-                      to={`/manage/${deployment.grid}`}
-                      key={`${deployment.grid}`}
-                    >
-                      <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white">
-                        <p>
-                          <strong>Pool:</strong> ({deployment.token0Symbol}/
-                          {deployment.token1Symbol}){" "}
-                          {(deployment.fee / 10000).toFixed(2)}%
-                        </p>
-                        <p>
-                          <strong>Liquidity:</strong>
-                        </p>
-                        <p>
-                          {fromRawTokenAmount(
-                            deployment.token0Liquidity,
-                            deployment.token0Decimals
-                          ).toFixed(6)}{" "}
-                          {deployment.token0Symbol} /{" "}
-                          {fromRawTokenAmount(
-                            deployment.token1Liquidity,
-                            deployment.token1Decimals
-                          ).toFixed(6)}{" "}
-                          {deployment.token1Symbol}
-                        </p>
-                        <p>
-                          <strong>Steps:</strong> {deployment.gridStep}
-                        </p>
-                        <p>
-                          <strong>Grids:</strong> {deployment.gridQuantity}
-                        </p>
-                        <p>
-                          <strong>InRange:</strong>{" "}
-                          {deployment.isInRange ? "Yes" : "No"}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p>No grids found.</p>
-              )}
-            </div>
+            {isLogsLoading ? (
+              <p>Loading grids...</p>
+            ) : (
+              <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
+                {openGrids?.length ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {openGrids.map((deployment) => (
+                      <Link
+                        to={`/manage/${deployment.grid}`}
+                        key={`${deployment.grid}`}
+                      >
+                        <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white">
+                          <p>
+                            <strong>Pool:</strong> ({deployment.token0Symbol}/
+                            {deployment.token1Symbol}){" "}
+                            {(deployment.fee / 10000).toFixed(2)}%
+                          </p>
+                          <p>
+                            <strong>Liquidity:</strong>
+                          </p>
+                          <p>
+                            {fromRawTokenAmount(
+                              deployment.token0Liquidity,
+                              deployment.token0Decimals
+                            ).toFixed(6)}{" "}
+                            {deployment.token0Symbol} /{" "}
+                            {fromRawTokenAmount(
+                              deployment.token1Liquidity,
+                              deployment.token1Decimals
+                            ).toFixed(6)}{" "}
+                            {deployment.token1Symbol}
+                          </p>
+                          <p>
+                            <strong>Steps:</strong> {deployment.gridStep}
+                          </p>
+                          <p>
+                            <strong>Grids:</strong> {deployment.gridQuantity}
+                          </p>
+                          <p>
+                            <strong>InRange:</strong>{" "}
+                            {deployment.isInRange ? "Yes" : "No"}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No grids found.</p>
+                )}
+              </div>
+            )}
           </Collapse>
           <Collapse title="Exited Grids">
             <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
