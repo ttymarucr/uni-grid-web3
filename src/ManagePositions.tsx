@@ -65,7 +65,7 @@ ChartJS.register(
  * @returns A JSX element with the formatted value.
  */
 function formatValue(value: number, decimals: number = 18): JSX.Element {
-  const valueStr = value.toFixed(decimals); // Convert the number to a string
+  const valueStr = value > 1 ? value.toFixed(4) : value.toFixed(decimals); // Convert the number to a string
   const parts = valueStr.split("."); // Split into integer and fractional parts
 
   if (parts.length < 2) {
@@ -388,7 +388,7 @@ const ManagePositions: React.FC = () => {
           ];
         return sum + feesToken0InToken1 + Number(token0Fees);
       }, 0)
-      .toFixed(2);
+      .toFixed(4);
   }, [
     positions,
     displayInToken0,
@@ -562,9 +562,9 @@ const ManagePositions: React.FC = () => {
     () => ({
       labels: positions.map(
         (position) =>
-          `${position.priceLower.toFixed(
+          `${position.priceLower>1?position.priceLower.toFixed(4):position.priceLower.toFixed(
             displayInToken0 ? pool.token0.decimals : pool.token1.decimals
-          )} - ${position.priceUpper.toFixed(
+          )} - ${position.priceUpper>1?position.priceUpper.toFixed(4):position.priceUpper.toFixed(
             displayInToken0 ? pool.token0.decimals : pool.token1.decimals
           )}`
       ),
@@ -647,10 +647,6 @@ const ManagePositions: React.FC = () => {
         >
           <ChevronLeftIcon className="md:w-7 w-5" />
         </div>
-        <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">{`${contractAddress?.slice(
-          0,
-          6
-        )}...${contractAddress?.slice(-4)}`}</div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
           Active Positions {positions.length}
         </div>
@@ -688,7 +684,11 @@ const ManagePositions: React.FC = () => {
               </a>{" "}
               {`${pool.fee / 10000}%`}
               <div className="flex float-right text-sm font-normal">
-                <Button buttonStyle="primary" className="mr-2" onClick={fetchPositions}>
+                <Button
+                  buttonStyle="primary"
+                  className="mr-2"
+                  onClick={fetchPositions}
+                >
                   <ArrowPathIcon className="h-5 w-5" />
                 </Button>
                 <Button buttonStyle="primary" onClick={toggleDisplayToken}>
@@ -843,7 +843,7 @@ const ManagePositions: React.FC = () => {
             />
             <div className="mb-4">
               <label className="block font-semibold mb-2">Position</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 text-sm">
                 <label className="flex-1">
                   <input
                     {...registerDeposit("gridType")}
@@ -852,7 +852,7 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy
+                    Buy {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
                 <label className="flex-1">
@@ -874,7 +874,7 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell
+                    Sell {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
               </div>
@@ -903,7 +903,7 @@ const ManagePositions: React.FC = () => {
             />
             <div className="mb-4">
               <label className="block font-semibold mb-2">Position</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 text-sm">
                 <label className="flex-1">
                   <input
                     {...registerCompound("gridType")}
@@ -912,7 +912,7 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy
+                    Buy {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
                 <label className="flex-1">
@@ -934,7 +934,7 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell
+                    Sell {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
               </div>
@@ -964,7 +964,7 @@ const ManagePositions: React.FC = () => {
             />
             <div className="mb-4">
               <label className="block font-semibold mb-2">Position</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 text-sm">
                 <label className="flex-1">
                   <input
                     {...registerSweep("gridType")}
@@ -973,7 +973,7 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy
+                    Buy {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
                 <label className="flex-1">
@@ -995,7 +995,7 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell
+                    Sell {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
               </div>
@@ -1167,6 +1167,9 @@ const ManagePositions: React.FC = () => {
                         ? pool.token0.decimals
                         : pool.token1.decimals
                     )}
+                <span className="m-2 hidden md:inline">
+                  {displayInToken0 ? pool.token0.symbol : pool.token1.symbol}
+                </span>
               </div>
               <div>
                 <p className="truncate">
