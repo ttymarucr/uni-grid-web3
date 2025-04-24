@@ -33,8 +33,8 @@ const Collapse: React.FC<CollapseProps> = ({ title, open=false, collapsible=true
       </button>
       <div className="w-full h-2 green-card" />
       <div
-        className={`md:overflow-hidden overflow-auto transition-all duration-300 ${
-          isOpen ? "max-h-screen" : "max-h-0"
+        className={`overflow-auto md:overflow-y-auto transition-all duration-300 ${
+          isOpen ? "max-h-screen md:max-h-full" : "max-h-0"
         }`}
       >
         <div className="p-4">{children}</div>

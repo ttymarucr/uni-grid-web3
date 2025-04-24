@@ -31,6 +31,7 @@ import {
 } from "./utils/uniswapUtils";
 import Collapse from "./components/Collapse";
 import TokenSearchDropdown from "./components/TokenSearchDropdown";
+import Button from "./components/Button";
 
 const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 
@@ -526,24 +527,23 @@ const GridManager = () => {
             <div>
               <div className="flex space-x-2">
                 {[1, 3, 5, 10].map((percentage) => (
-                  <button
+                  <Button
                     key={percentage}
-                    type="button"
+                    type="Button"
+                    buttonStyle="primary"
                     onClick={() => calculatePricePercentage(percentage)}
-                    className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded"
                   >
                     {percentage}%
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
-            <button
+            <Button
               type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
               disabled={!poolAddress}
             >
               Deploy Grid
-            </button>
+            </Button>
           </form>
           {isOwner && (
             <div className="mt-10">
@@ -561,12 +561,12 @@ const GridManager = () => {
                     className="border p-2 rounded w-full"
                   />
                 </div>
-                <button
+                <Button
                   onClick={upgradeTo}
-                  className="bg-red-500 text-white px-4 py-2 rounded"
+                  className="bg-red-500"
                 >
                   Upgrade Contract
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -625,12 +625,11 @@ const GridManager = () => {
               </div>
             )}
             <div className="mt-4">
-              <button
+              <Button
                 onClick={() => refetch()}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:cursor-pointer hover:bg-blue-600"
               >
                 <ArrowPathIcon className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
           </Collapse>
           <Collapse title="Exited Grids">
@@ -682,12 +681,11 @@ const GridManager = () => {
               )}
             </div>
             <div className="mt-4">
-              <button
+              <Button
                 onClick={() => refetch()}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:cursor-pointer hover:bg-blue-600"
               >
                 <ArrowPathIcon className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
           </Collapse>
         </div>

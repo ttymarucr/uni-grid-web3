@@ -6,6 +6,7 @@ import {
 } from "@reown/appkit/react";
 import ChainSelector from "./ChainSelector";
 import { PowerIcon } from "@heroicons/react/24/outline";
+import Button from "./Button";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { address, isConnected } = useAppKitAccount();
@@ -30,21 +31,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   {`${address?.slice(0, 6)}...${address?.slice(-4)}`}
                 </div>
                 <ChainSelector />
-                <button
+                <Button
                   onClick={() => disconnect()}
-                  className="m-2 bg-gray-900 hover:bg-gray-800 text-white text-sm md:text-base px-4 py-2 rounded h-10 hover:cursor-pointer"
                 >
                   <PowerIcon className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="flex items-center m-2">
-                <button
+                <Button
                   onClick={() => open({ view: "Connect", namespace: "eip155" })}
-                  className="bg-blue-500 text-white text-sm md:text-base px-4 py-2 rounded h-10 hover:cursor-pointer"
                 >
                   Connect Wallet
-                </button>
+                </Button>
               </div>
             )}
           </div>

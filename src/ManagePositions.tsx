@@ -45,7 +45,8 @@ import {
 } from "./utils/uniswapUtils";
 import Collapse from "./components/Collapse";
 import { useChainId } from "wagmi";
-import { ChevronLeftIcon } from "@heroicons/react/24/outline";
+import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
+import Button from "./components/Button";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -557,82 +558,94 @@ const ManagePositions: React.FC = () => {
     }
   }, [chainId]);
 
-  const chartData = React.useMemo(() => ({
-    labels: positions.map(
-      (position) =>
-        `${position.priceLower.toFixed(
-          displayInToken0 ? pool.token0.decimals : pool.token1.decimals
-        )} - ${position.priceUpper.toFixed(
-          displayInToken0 ? pool.token0.decimals : pool.token1.decimals
-        )}`
-    ),
-    datasets: [
-      {
-        label: "Liquidity",
-        data: positions.map((position) =>
-          Number(
-            displayInToken0
-              ? position.liquidityToken0
-              : position.liquidityToken1
-          )
-        ),
-        backgroundColor: "rgba(75, 192, 192, 0.6)",
-        borderColor: "rgba(75, 192, 192, 1)",
-        borderWidth: 1,
-      },
-    ],
-  }), [positions, displayInToken0, pool.token0.decimals, pool.token1.decimals]);
-
-  const chartOptions = React.useMemo(() => ({
-    responsive: true,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        callbacks: {
-          label: (context: any) => `Liquidity: ${context.raw.toLocaleString()}`,
+  const chartData = React.useMemo(
+    () => ({
+      labels: positions.map(
+        (position) =>
+          `${position.priceLower.toFixed(
+            displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+          )} - ${position.priceUpper.toFixed(
+            displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+          )}`
+      ),
+      datasets: [
+        {
+          label: "Liquidity",
+          data: positions.map((position) =>
+            Number(
+              displayInToken0
+                ? position.liquidityToken0
+                : position.liquidityToken1
+            )
+          ),
+          backgroundColor: "rgba(75, 192, 192, 0.6)",
+          borderColor: "rgba(75, 192, 192, 1)",
+          borderWidth: 1,
         },
-      },
-      annotation: {
-        annotations: {
-          currentTickLine: {
-            type: "line",
-            scaleID: "x",
-            value: inRangePositionIndex,
-            borderColor: "red",
-            borderWidth: 2,
+      ],
+    }),
+    [positions, displayInToken0, pool.token0.decimals, pool.token1.decimals]
+  );
+
+  const chartOptions = React.useMemo(
+    () => ({
+      responsive: true,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          callbacks: {
+            label: (context: any) =>
+              `Liquidity: ${context.raw.toLocaleString()}`,
+          },
+        },
+        annotation: {
+          annotations: {
+            currentTickLine: {
+              type: "line",
+              scaleID: "x",
+              value: inRangePositionIndex,
+              borderColor: "red",
+              borderWidth: 2,
+            },
           },
         },
       },
-    },
-    scales: {
-      x: {
-        title: {
-          display: true,
-          text: "Position Range (PriceLower - PriceUpper)",
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: "Position Range (PriceLower - PriceUpper)",
+          },
+        },
+        y: {
+          title: {
+            display: true,
+            text: `Liquidity (${
+              displayInToken0 ? pool.token0.symbol : pool.token1.symbol
+            })`,
+          },
+          beginAtZero: true,
         },
       },
-      y: {
-        title: {
-          display: true,
-          text: `Liquidity (${
-            displayInToken0 ? pool.token0.symbol : pool.token1.symbol
-          })`,
-        },
-        beginAtZero: true,
-      },
-    },
-  }), [inRangePositionIndex, displayInToken0, pool.token0.symbol, pool.token1.symbol]);
+    }),
+    [
+      inRangePositionIndex,
+      displayInToken0,
+      pool.token0.symbol,
+      pool.token1.symbol,
+    ]
+  );
 
   return (
     <div className="md:m-10 m-2">
       <div className="grid md:grid-flow-col grid-flow-row justify-items-stretch md:gap-4 gap-0 md:text-lg text-sm font-semibold">
         <div
-          className="green-card rounded flex justify-center items-center mb-4 px-4 py-2"
+          className="green-card rounded flex justify-center items-center mb-4 px-4 py-2 hover:cursor-pointer"
           onClick={() => navigate("/")}
         >
-          <ChevronLeftIcon className="md:w-10 w-5" />
+          <ChevronLeftIcon className="md:w-7 w-5" />
         </div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">{`${contractAddress?.slice(
           0,
@@ -675,19 +688,13 @@ const ManagePositions: React.FC = () => {
               </a>{" "}
               {`${pool.fee / 10000}%`}
               <div className="flex float-right text-sm font-normal">
-                <button
-                  onClick={fetchPositions}
-                  className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
-                >
-                  Refresh
-                </button>
-                <button
-                  onClick={toggleDisplayToken}
-                  className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
-                >
+                <Button buttonStyle="primary" className="mr-2" onClick={fetchPositions}>
+                  <ArrowPathIcon className="h-5 w-5" />
+                </Button>
+                <Button buttonStyle="primary" onClick={toggleDisplayToken}>
                   Display in{" "}
                   {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                </button>
+                </Button>
               </div>
             </h2>
             <p>
@@ -736,8 +743,10 @@ const ManagePositions: React.FC = () => {
                 placeholder={`${pool.token0.symbol} Amount`}
                 className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
-              <button
-                type="button"
+              <Button
+                buttonStyle="primary"
+                className="m-2"
+                type="Button"
                 onClick={async () => {
                   const token0Balance = await fetchTokenBalance(
                     pool.token0.address || "0x00"
@@ -757,12 +766,12 @@ const ManagePositions: React.FC = () => {
                     slippage: 0.1,
                   });
                 }}
-                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
               >
                 Max
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                buttonStyle="primary"
+                type="Button"
                 onClick={() => {
                   const { token0Amount } = getValuesDeposit();
                   handleTokenApprove(
@@ -771,10 +780,9 @@ const ManagePositions: React.FC = () => {
                     pool.token0.decimals
                   );
                 }}
-                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
               >
                 Approve
-              </button>
+              </Button>
             </div>
             <div className="flex items-center mb-2">
               <input
@@ -785,8 +793,10 @@ const ManagePositions: React.FC = () => {
                 placeholder={`${pool.token1.symbol} Amount`}
                 className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
-              <button
-                type="button"
+              <Button
+                buttonStyle="primary"
+                className="m-2"
+                type="Button"
                 onClick={async () => {
                   const token0Balance = await fetchTokenBalance(
                     pool.token0.address || "0x00"
@@ -806,12 +816,12 @@ const ManagePositions: React.FC = () => {
                     slippage: 0.1,
                   });
                 }}
-                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
               >
                 Max
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                buttonStyle="primary"
+                type="Button"
                 onClick={() => {
                   const { token1Amount } = getValuesDeposit();
                   handleTokenApprove(
@@ -820,10 +830,9 @@ const ManagePositions: React.FC = () => {
                     pool.token1.decimals
                   );
                 }}
-                className="ml-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md hover:cursor-pointer"
               >
                 Approve
-              </button>
+              </Button>
             </div>
             <input
               {...registerDeposit("slippage")}
@@ -870,12 +879,9 @@ const ManagePositions: React.FC = () => {
                 </label>
               </div>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Deposit
-            </button>
+            </Button>
           </form>
 
           <form
@@ -933,12 +939,9 @@ const ManagePositions: React.FC = () => {
                 </label>
               </div>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Compound
-            </button>
+            </Button>
           </form>
 
           <form
@@ -997,12 +1000,9 @@ const ManagePositions: React.FC = () => {
                 </label>
               </div>
             </div>
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Sweep
-            </button>
+            </Button>
           </form>
 
           <form
@@ -1016,12 +1016,9 @@ const ManagePositions: React.FC = () => {
             <p className="text-sm text-gray-600 mb-4">
               Withdraw all liquidity from the grid positions.
             </p>
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Withdraw
-            </button>
+            </Button>
           </form>
 
           <form
@@ -1035,12 +1032,9 @@ const ManagePositions: React.FC = () => {
             <p className="text-sm text-gray-600 mb-4">
               Close all active positions in the grid.
             </p>
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Close
-            </button>
+            </Button>
           </form>
 
           <form
@@ -1068,12 +1062,9 @@ const ManagePositions: React.FC = () => {
               placeholder={`${pool.token1.symbol} Minimum Fees`}
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Set Minimum Fees
-            </button>
+            </Button>
           </form>
 
           <form
@@ -1093,12 +1084,9 @@ const ManagePositions: React.FC = () => {
               placeholder="Grid Quantity"
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Set Grid Quantity
-            </button>
+            </Button>
           </form>
 
           <form
@@ -1118,12 +1106,9 @@ const ManagePositions: React.FC = () => {
               placeholder="Grid Step"
               className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
-            <button
-              type="submit"
-              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-2 rounded-md transition hover:cursor-pointer"
-            >
+            <Button buttonStyle="primary" type="submit">
               Set Grid Step
-            </button>
+            </Button>
           </form>
         </div>
       </Collapse>

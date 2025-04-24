@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { config } from "../../config";
 import { useChainId, useChains } from "wagmi";
 import { switchChain } from "@wagmi/core";
+import Button from "../Button";
 
 const ChainSelector = () => {
   const chainId = useChainId({ config });
@@ -16,13 +17,13 @@ const ChainSelector = () => {
   };
 
   return (
-    <div onBlur={handleBlur} className="relative inline-block">
-      <button
-        className="m-2 bg-gray-900 text-white text-sm md:text-base text-nowrap px-4 py-2 rounded hover:bg-gray-800 h-10 hover:cursor-pointer"
+    <div onBlur={handleBlur} className="mr-2 relative inline-block">
+      <Button
+        buttonStyle="primary"
         onClick={() => setIsDropdownVisible(true)}
       >
         {chains.find((c) => c.id === chainId)?.name || "Select Chain"}
-      </button>
+      </Button>
       {isDropdownVisible && (
         <div className="absolute mt-2 bg-white text-gray-800 text-sm md:text-base border shadow-lg h-10">
           {chains.map((availableChain) => (
