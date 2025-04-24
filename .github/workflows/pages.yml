@@ -41,6 +41,12 @@ jobs:
         run: yarn install
       - name: Build
         run: yarn build
+        env:
+          VITE_SUBGRAPH_API_KEY: ${{ secrets.VITE_SUBGRAPH_API_KEY }}
+          VITE_ALCHEMY_API_KEY: ${{ secrets.VITE_ALCHEMY_API_KEY }}
+          VITE_APPKIT_PROJECT_ID: ${{ secrets.VITE_APPKIT_PROJECT_ID }}
+          VITE_APPKIT_URL: ${{ vars.VITE_APPKIT_URL }}
+          VITE_APPKIT_ICON_URL: ${{ vars.VITE_APPKIT_ICON_URL }}
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

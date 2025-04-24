@@ -11,7 +11,7 @@ function App() {
     <AppKitProvider>
       <SubGraphProvider>
         <Layout>
-          <Router>
+          <Router basename="/uni-grid-web3/">
             <Routes>
               <Route
                 path="/manage/:contractAddress"
