@@ -4,7 +4,6 @@ import {
   TickMath,
   SqrtPriceMath,
   encodeSqrtRatioX96,
-  tickToPrice as tickToPriceUni,
   nearestUsableTick,
 } from "@uniswap/v3-sdk";
 

@@ -9,14 +9,14 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 const queryClient = new QueryClient()
 
 // 1. Get projectId from https://cloud.reown.com
-const projectId = '72542ff6809064e93e2a333a574f466e'
+const projectId = `${import.meta.env.VITE_APPKIT_PROJECT_ID}`
 
 // 2. Create a metadata object - optional
 const metadata = {
   name: 'UniGrids',
-  description: 'UniGrids is a decentralized liquidity management protocol for Uniswap V3.',
-//   url: 'https://example.com', // origin must match your domain & subdomain
-//   icons: ['https://avatars.githubusercontent.com/u/179229932']
+  description: 'UniGrids is a decentralized liquidity management tool for Uniswap V3.',
+  url: `${import.meta.env.VITE_APPKIT_URL}`, 
+  icons: [`${import.meta.env.VITE_APPKIT_ICON}`],
 }
 
 // 3. Set the networks

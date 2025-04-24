@@ -10,7 +10,7 @@ export const SubGraphProvider = ({ children }: { children: ReactNode }) => {
       url: `https://gateway.thegraph.com/api/subgraphs/id/${subgraphId}`,
       fetchOptions: {
         headers: {
-          Authorization: "Bearer 517d67b3e5862e4b45f60ed4cacd2a30",
+          Authorization: `Bearer ${import.meta.env.VITE_SUBGRAPH_API_KEY}`,
         },
       },
       exchanges: [cacheExchange, fetchExchange],

@@ -9,10 +9,10 @@ export const config = createConfig({
   connectors: [injected({ shimDisconnect: true })],
   transports: {
     [base.id]: http(
-      "https://base-mainnet.g.alchemy.com/v2/_zTD3BWOgxR-BQ1lHisJL86d8LP8XBaF"
+      `https://base-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`
     ),
     [arbitrum.id]: http(
-      "https://arb-mainnet.g.alchemy.com/v2/_zTD3BWOgxR-BQ1lHisJL86d8LP8XBaF"
+      `https://arb-mainnet.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`
     ),
   },
 });
