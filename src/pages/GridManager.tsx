@@ -5,11 +5,11 @@ import {
   IERC20MetadataABI,
   IUniswapV3FactoryABI,
   IUniswapV3PoolABI,
-} from "./abis";
+} from "../abis";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLogs } from "viem/actions";
-import { config, deploymentConfigMap } from "./config";
+import { config, deploymentConfigMap } from "../config";
 import {
   getPublicClient,
   multicall,
@@ -23,15 +23,15 @@ import { Link } from "react-router-dom";
 import { Token } from "@uniswap/sdk-core";
 import { useChainId } from "wagmi";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
-import { DeploymentConfig, GridDeployment, PoolInfo } from "./types";
+import { DeploymentConfig, GridDeployment, PoolInfo } from "../types";
 import {
   fromRawTokenAmount,
   priceToTick,
   tickToPrice,
-} from "./utils/uniswapUtils";
-import Collapse from "./components/Collapse";
-import TokenSearchDropdown from "./components/TokenSearchDropdown";
-import Button from "./components/Button";
+} from "../utils/uniswapUtils";
+import Collapse from "../components/Collapse";
+import TokenSearchDropdown from "../components/TokenSearchDropdown";
+import Button from "../components/Button";
 
 const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 

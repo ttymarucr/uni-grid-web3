@@ -20,14 +20,16 @@ import { Bar } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useForm } from "react-hook-form";
-
+import { maxUint128 } from "viem";
+import { useChainId } from "wagmi";
+import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import {
   GridPositionManagerABI,
   IUniswapV3PoolABI,
   INonfungiblePositionManagerABI,
   IERC20MetadataABI,
-} from "./abis";
-import { config, deploymentConfigMap } from "./config";
+} from "../abis";
+import { config, deploymentConfigMap } from "../config";
 import {
   DeploymentConfig,
   GridPosition,
@@ -35,18 +37,15 @@ import {
   PoolMetadata,
   Position,
   TokenMetadata,
-} from "./types";
-import { maxUint128 } from "viem";
+} from "../types";
 import {
   fromRawTokenAmount,
   liquidityToTokenAmounts,
   tickToPrice,
   toRawTokenAmount,
-} from "./utils/uniswapUtils";
-import Collapse from "./components/Collapse";
-import { useChainId } from "wagmi";
-import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
-import Button from "./components/Button";
+} from "../utils/uniswapUtils";
+import Collapse from "../components/Collapse";
+import Button from "../components/Button";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -562,11 +561,19 @@ const ManagePositions: React.FC = () => {
     () => ({
       labels: positions.map(
         (position) =>
-          `${position.priceLower>1?position.priceLower.toFixed(4):position.priceLower.toFixed(
-            displayInToken0 ? pool.token0.decimals : pool.token1.decimals
-          )} - ${position.priceUpper>1?position.priceUpper.toFixed(4):position.priceUpper.toFixed(
-            displayInToken0 ? pool.token0.decimals : pool.token1.decimals
-          )}`
+          `${
+            position.priceLower > 1
+              ? position.priceLower.toFixed(4)
+              : position.priceLower.toFixed(
+                  displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+                )
+          } - ${
+            position.priceUpper > 1
+              ? position.priceUpper.toFixed(4)
+              : position.priceUpper.toFixed(
+                  displayInToken0 ? pool.token0.decimals : pool.token1.decimals
+                )
+          }`
       ),
       datasets: [
         {
@@ -852,7 +859,8 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                    Buy{" "}
+                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
                 <label className="flex-1">
@@ -874,7 +882,8 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                    Sell{" "}
+                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
               </div>
@@ -912,7 +921,8 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                    Buy{" "}
+                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
                 <label className="flex-1">
@@ -934,7 +944,8 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                    Sell{" "}
+                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
               </div>
@@ -973,7 +984,8 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                    Buy{" "}
+                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
                 <label className="flex-1">
@@ -995,7 +1007,8 @@ const ManagePositions: React.FC = () => {
                     className="hidden peer"
                   />
                   <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
+                    Sell{" "}
+                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
                   </div>
                 </label>
               </div>

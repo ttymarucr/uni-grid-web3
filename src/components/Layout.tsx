@@ -7,6 +7,7 @@ import {
 import ChainSelector from "./ChainSelector";
 import { PowerIcon } from "@heroicons/react/24/outline";
 import Button from "./Button";
+import About from "../pages/About";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { address, isConnected } = useAppKitAccount();
@@ -49,7 +50,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
           </div>
       </header>
-      {isConnected && <main>{children}</main>}
+      {isConnected ? (<main>{children}</main>) : (<About />)}
     </div>
   );
 };

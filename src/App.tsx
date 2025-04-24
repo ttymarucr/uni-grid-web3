@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import ManagePositions from "./ManagePositions";
+import ManagePositions from "./pages/ManagePositions";
 import { AppKitProvider } from "./components/AppkitProvider";
 import Layout from "./components/Layout";
-import GridManager from "./GridManager";
+import GridManager from "./pages/GridManager";
 import { SubGraphProvider } from "./components/SubGraphProvider";
 
 

@@ -1,54 +1,55 @@
-# React + TypeScript + Vite
+# UniGrid: A Decentralized Grid Tool for Uniswap
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+UniGrid is a decentralized grid trading tool built on top of Uniswap. It empowers users to automate their trading strategies by creating grid-based trading patterns directly on the Uniswap protocol. This tool leverages the power of decentralized finance (DeFi) to provide a transparent, trustless, and efficient way to execute grid trading strategies.
 
-Currently, two official plugins are available:
+## Purpose
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The purpose of UniGrid is to simplify and enhance the trading experience for users of Uniswap by introducing grid trading functionality. Grid trading is a popular strategy that involves placing buy and sell orders at predefined intervals above and below a set price. UniGrid automates this process, allowing users to:
 
-## Expanding the ESLint configuration
+- Maximize profits in volatile markets.
+- Minimize manual intervention in trading.
+- Take advantage of Uniswap's decentralized liquidity pools.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+By building on Uniswap, UniGrid ensures that all trades are executed in a decentralized and permissionless manner, giving users full control over their funds and strategies.
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+## Features
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **Decentralized Trading**: Fully integrated with Uniswap's decentralized exchange.
+- **Automated Grid Strategies**: Create and manage grid trading strategies with ease.
+- **Transparency**: All transactions are executed on-chain, ensuring trust and security.
+- **Customizable Parameters**: Define grid intervals, price ranges, and order sizes to suit your trading needs.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Limitations
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+While UniGrid provides powerful tools for grid trading on Uniswap, there are some limitations to consider:
+
+- **Gas Costs**: Since all transactions are executed on-chain, users may incur significant gas fees, especially during periods of high network congestion.
+- **Market Volatility**: Grid trading strategies may not perform well in extremely volatile or illiquid markets, potentially leading to losses.
+- **No Guaranteed Profits**: While grid trading can be profitable in certain market conditions, it does not guarantee profits and carries inherent risks.
+
+## Work in Progress
+
+- **Liquidity Distribution**: Allow the user to select from different distribution methods:
+  - Flat
+  - Curved
+  - Linear
+  - Sigmoid
+  - Fibonacci / Bid - Ask
+  - Logarithmic
+
+- **Automation**:
+  - Compound
+  - Sweep
+  - Exit
+
+- **Uniswap v4**
+- **Additional AMMs**
+
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
