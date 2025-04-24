@@ -1,17 +1,16 @@
 import { cacheExchange, createClient, fetchExchange, Provider } from "urql";
 import { useChainId } from "wagmi";
-import { deploymentContractsMap } from "../config";
-import { useCallback } from "react";
-
-export const SubGraphProvider = ({ children }) => {
+import { deploymentConfigMap } from "../config";
+import { ReactNode, useCallback } from "react";
+export const SubGraphProvider = ({ children }: { children: ReactNode }) => {
   const chainId = useChainId();
-  const subgraphId = deploymentContractsMap[chainId].subgraphId;
+  const subgraphId = deploymentConfigMap[chainId].subgraphId;
   const client = useCallback(() => {
     return createClient({
       url: `https://gateway.thegraph.com/api/subgraphs/id/${subgraphId}`,
       fetchOptions: {
         headers: {
-            Authorization: "Bearer 517d67b3e5862e4b45f60ed4cacd2a30",
+          Authorization: "Bearer 517d67b3e5862e4b45f60ed4cacd2a30",
         },
       },
       exchanges: [cacheExchange, fetchExchange],

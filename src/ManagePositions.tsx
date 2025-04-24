@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, JSX } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   writeContract,
   multicall,
@@ -27,9 +27,9 @@ import {
   INonfungiblePositionManagerABI,
   IERC20MetadataABI,
 } from "./abis";
-import { config, deploymentContractsMap } from "./config";
+import { config, deploymentConfigMap } from "./config";
 import {
-  DeploymentContract,
+  DeploymentConfig,
   GridPosition,
   GridState,
   PoolMetadata,
@@ -45,6 +45,7 @@ import {
 } from "./utils/uniswapUtils";
 import Collapse from "./components/Collapse";
 import { useChainId } from "wagmi";
+import { ChevronLeftIcon } from "@heroicons/react/24/outline";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -91,7 +92,7 @@ const ManagePositions: React.FC = () => {
   const { contractAddress } = useParams<{ contractAddress: `0x${string}` }>();
   const { address, isConnected } = useAppKitAccount();
   const [deploymentContracts, setDeploymentContracts] =
-    useState<DeploymentContract>({} as DeploymentContract);
+    useState<DeploymentConfig>({} as DeploymentConfig);
   const [positions, setPositions] = useState<Position[]>([]);
   const [gridState, setGridState] = useState<GridState>({
     token0MinFees: 0n,
@@ -111,6 +112,7 @@ const ManagePositions: React.FC = () => {
   });
 
   const chainId = useChainId({ config });
+  const navigate = useNavigate();
 
   const {
     register: registerDeposit,
@@ -551,7 +553,7 @@ const ManagePositions: React.FC = () => {
 
   useEffect(() => {
     if (chainId) {
-      setDeploymentContracts(deploymentContractsMap[chainId]);
+      setDeploymentContracts(deploymentConfigMap[chainId]);
     }
   }, [chainId]);
 
@@ -624,12 +626,13 @@ const ManagePositions: React.FC = () => {
   };
   return (
     <div className="md:m-10 m-2">
-      <div className="grid md:grid-flow-col grid-flow-row justify-items-stretch gap-4 md:text-lg text-sm font-semibold">
-        <Link to="/">
-          <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
-            &#12296;
-          </div>
-        </Link>
+      <div className="grid md:grid-flow-col grid-flow-row justify-items-stretch md:gap-4 gap-0 md:text-lg text-sm font-semibold">
+        <div
+          className="green-card rounded flex justify-center items-center mb-4 px-4 py-2"
+          onClick={() => navigate("/")}
+        >
+          <ChevronLeftIcon className="md:w-10 w-5" />
+        </div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">{`${contractAddress?.slice(
           0,
           6
@@ -662,7 +665,7 @@ const ManagePositions: React.FC = () => {
             <h2 className="text-xl font-semibold">
               Pool{" "}
               <a
-                href={`https://app.uniswap.org/explore/pools/base/${pool.address}`}
+                href={`https://app.uniswap.org/explore/pools/${deploymentContracts.uniswapChain}/${pool.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"
@@ -1124,7 +1127,7 @@ const ManagePositions: React.FC = () => {
         </div>
       </Collapse>
       <div>
-        <div className="grid grid-cols-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
+        <div className="grid grid-cols-4 md:gap-0 gap-1 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Position</div>
           <div>Price Range</div>
           <div>Liquidity</div>
@@ -1139,13 +1142,13 @@ const ManagePositions: React.FC = () => {
           return (
             <div
               key={index}
-              className={`grid grid-cols-4 border-b border-gray-200 py-2 ${
+              className={`grid grid-cols-4 md:gap-0 gap-1 border-b border-gray-200 py-2 ${
                 isHighlighted ? "green-card" : ""
               }`}
             >
               <div>
                 <a
-                  href={`https://app.uniswap.org/positions/v3/base/${position.tokenId}`}
+                  href={`https://app.uniswap.org/positions/v3/${deploymentContracts.uniswapChain}/${position.tokenId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline"
@@ -1153,7 +1156,7 @@ const ManagePositions: React.FC = () => {
                   {position.tokenId.toString()}
                 </a>
               </div>
-              <div>
+              <div className="truncate">
                 {formatValue(
                   position.priceLower,
                   displayInToken0 ? pool.token0.decimals : pool.token1.decimals
@@ -1164,7 +1167,7 @@ const ManagePositions: React.FC = () => {
                   displayInToken0 ? pool.token0.decimals : pool.token1.decimals
                 )}
               </div>
-              <div>
+              <div className="truncate">
                 {displayInToken0
                   ? formatValue(
                       position.liquidityToken0,

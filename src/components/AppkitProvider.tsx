@@ -40,7 +40,7 @@ createAppKit({
   }
 })
 
-export function AppKitProvider({ children }) {
+export function AppKitProvider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

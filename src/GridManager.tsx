@@ -9,7 +9,7 @@ import {
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { getLogs } from "viem/actions";
-import { config, deploymentContractsMap } from "./config";
+import { config, deploymentConfigMap } from "./config";
 import {
   getPublicClient,
   multicall,
@@ -21,13 +21,14 @@ import { ToastContainer, toast } from "react-toastify";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { Token } from "@uniswap/sdk-core";
-import { DeploymentContract, GridDeployment, PoolInfo } from "./types";
+import { useChainId } from "wagmi";
+import { ArrowPathIcon } from "@heroicons/react/24/outline";
+import { DeploymentConfig, GridDeployment, PoolInfo } from "./types";
 import {
   fromRawTokenAmount,
   priceToTick,
   tickToPrice,
 } from "./utils/uniswapUtils";
-import { useChainId } from "wagmi";
 import Collapse from "./components/Collapse";
 import TokenSearchDropdown from "./components/TokenSearchDropdown";
 
@@ -39,7 +40,7 @@ const GridManager = () => {
   const [openGrids, setOpenGrids] = useState<GridDeployment[]>([]);
   const [exitedGrids, setExitedGrids] = useState<GridDeployment[]>([]);
   const [deploymentContracts, setDeploymentContracts] =
-    useState<DeploymentContract>({} as DeploymentContract);
+    useState<DeploymentConfig>({} as DeploymentConfig);
   const [selectedToken0, setSelectedToken0] = useState<string>();
   const [selectedToken1, setSelectedToken1] = useState<string>();
   const [token0, setToken0] = useState<Token>();
@@ -141,7 +142,7 @@ const GridManager = () => {
       );
       setOpenGrids(openGrids);
       setExitedGrids(exitedGrids);
-      toast.success("Grids fetched successfully.");
+      toast("Grids fetched successfully.");
     } catch (error) {
       console.error(`Error fetching grids with multicall:`, error);
     }
@@ -217,7 +218,7 @@ const GridManager = () => {
           Number(priceUpper),
           tickSpacing
         ) * (displayInToken0 ? -1 : 1);
-      const tickRange = Math.floor(Math.abs(upperTick - lowerTick));
+      const tickRange = Math.floor(Math.abs(upperTick - lowerTick) / tickSpacing);
       const gridStep = Math.floor(tickRange / gridSize);
       if (gridStep < 1) {
         toast.error("Price range is too small for the grid size.");
@@ -398,7 +399,7 @@ const GridManager = () => {
 
   useEffect(() => {
     if (chainId) {
-      setDeploymentContracts(deploymentContractsMap[chainId]);
+      setDeploymentContracts(deploymentConfigMap[chainId]);
     }
   }, [chainId]);
 
@@ -434,9 +435,8 @@ const GridManager = () => {
 
   return (
     <div className="m-10">
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-10">
-        <div>
-          <h2 className="text-xl font-bold mb-4">Deploy Grid</h2>
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 md:gap-10 gap-0">
+        <Collapse title="Deploy Grid" open={true} collapsible={false}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block font-medium">Token 0</label>
@@ -491,6 +491,16 @@ const GridManager = () => {
                   >
                     Toggle Price
                   </span>
+                  {poolAddress && (
+                    <a
+                    href={`https://app.uniswap.org/explore/pools/${deploymentContracts.uniswapChain}/${poolAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline mr-2"
+                  >
+                    View Pool
+                  </a>
+                  )}
                   <span>Current Price: {currentPrice}</span>
                 </div>
               )}
@@ -560,14 +570,8 @@ const GridManager = () => {
               </div>
             </div>
           )}
-        </div>
+        </Collapse>
         <div className="md:col-span-2">
-          <button
-            onClick={() => refetch()}
-            className="bg-gray-900 text-white px-4 py-2 rounded mt-4 mb-4 hover:cursor-pointer hover:bg-gray-800"
-          >
-            Refresh
-          </button>
           <Collapse title="Open Grids" open={true}>
             {isLogsLoading ? (
               <p>Loading grids...</p>
@@ -620,9 +624,18 @@ const GridManager = () => {
                 )}
               </div>
             )}
+            <div className="mt-4">
+              <button
+                onClick={() => refetch()}
+                className="bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+              </button>
+            </div>
           </Collapse>
           <Collapse title="Exited Grids">
             <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
+            {openGrids?.length ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {exitedGrids.map((deployment) => (
                   <Link
@@ -664,6 +677,9 @@ const GridManager = () => {
                   </Link>
                 ))}
               </div>
+             ) : (
+                <p>No grids found.</p>
+              )}
             </div>
           </Collapse>
         </div>

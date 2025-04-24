@@ -1,4 +1,4 @@
-import React, { useState, useRef, use, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "urql";
 
 const QUERY = `query Tokens($symbol:String) {
@@ -14,7 +14,12 @@ const QUERY = `query Tokens($symbol:String) {
     }
   }`;
 
-const TokenSearchDropdown = ({ value, onChange }) => {
+interface TokenSearchDropdownProps {
+  value: string | undefined;
+  onChange: (value: string | undefined) => void;
+}
+
+const TokenSearchDropdown: React.FC<TokenSearchDropdownProps> = ({ value, onChange }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +81,7 @@ const TokenSearchDropdown = ({ value, onChange }) => {
         <select
           size={5}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {onChange(e.target.value); setIsDropdownVisible(false);}}
           className="absolute bg-white top-full left-0 right-0 border border-gray-300 rounded shadow-lg max-h-52 overflow-y-auto z-50 w-full"
         >
           {fetching && <option disabled>Loading...</option>}

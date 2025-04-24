@@ -69,13 +69,14 @@ export interface TrustedToken {
   symbol: string;
 }
 
-export interface DeploymentContract {
+export interface DeploymentConfig {
   gridManager: `0x${string}`;
   uniswapV3PositionManager: `0x${string}`;
   uniswapV3Factory: `0x${string}`;
   subgraphId: string;
+  uniswapChain: string;
 }
 
-export interface DeploymentContractsMap {
-  [key: string]: DeploymentContract;
+export interface DeploymentConfigMap {
+  [key: string]: DeploymentConfig;
 }

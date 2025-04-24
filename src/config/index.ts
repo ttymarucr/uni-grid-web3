@@ -1,8 +1,8 @@
 import { http, createConfig } from "@wagmi/core";
 import { base, arbitrum } from "@wagmi/core/chains";
 import { injected } from "@wagmi/connectors";
-import deploymentContracts from "./deploymentContracts.json";
-import { DeploymentContractsMap } from "../types";
+import deploymentConfig from "./deploymentConfig.json";
+import { DeploymentConfigMap } from "../types";
 
 export const config = createConfig({
   chains: [base, arbitrum],
@@ -17,5 +17,5 @@ export const config = createConfig({
   },
 });
 
-export const deploymentContractsMap =
-  deploymentContracts as DeploymentContractsMap;
+export const deploymentConfigMap =
+  deploymentConfig as DeploymentConfigMap;

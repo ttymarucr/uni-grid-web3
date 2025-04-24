@@ -18,7 +18,7 @@ const ChainSelector = () => {
   return (
     <div onBlur={handleBlur} className="relative inline-block">
       <button
-        className="bg-gray-900 text-white text-sm md:text-base text-nowrap px-4 py-2 rounded-l hover:bg-gray-800 h-8 md:h-10 hover:cursor-pointer"
+        className="m-2 bg-gray-900 text-white text-sm md:text-base text-nowrap px-4 py-2 rounded hover:bg-gray-800 h-8 md:h-10 hover:cursor-pointer"
         onClick={() => setIsDropdownVisible(true)}
       >
         {chains.find((c) => c.id === chainId)?.name || "Select Chain"}
