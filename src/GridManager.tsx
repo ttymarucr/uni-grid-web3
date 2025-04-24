@@ -584,7 +584,7 @@ const GridManager = () => {
                         to={`/manage/${deployment.grid}`}
                         key={`${deployment.grid}`}
                       >
-                        <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white">
+                        <div className={`border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white ${deployment.isInRange ? "" : "border-red-900"}`}>
                           <p>
                             <strong>Pool:</strong> ({deployment.token0Symbol}/
                             {deployment.token1Symbol}){" "}
@@ -612,7 +612,7 @@ const GridManager = () => {
                             <strong>Grids:</strong> {deployment.gridQuantity}
                           </p>
                           <p>
-                            <strong>InRange:</strong>{" "}
+                            <strong>In Range:</strong>{" "}
                             {deployment.isInRange ? "Yes" : "No"}
                           </p>
                         </div>
@@ -627,7 +627,7 @@ const GridManager = () => {
             <div className="mt-4">
               <button
                 onClick={() => refetch()}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:cursor-pointer hover:bg-blue-600"
               >
                 <ArrowPathIcon className="h-5 w-5" />
               </button>
@@ -680,6 +680,14 @@ const GridManager = () => {
              ) : (
                 <p>No grids found.</p>
               )}
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => refetch()}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:cursor-pointer hover:bg-blue-600"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+              </button>
             </div>
           </Collapse>
         </div>

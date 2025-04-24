@@ -557,7 +557,7 @@ const ManagePositions: React.FC = () => {
     }
   }, [chainId]);
 
-  const chartData = {
+  const chartData = React.useMemo(() => ({
     labels: positions.map(
       (position) =>
         `${position.priceLower.toFixed(
@@ -581,9 +581,9 @@ const ManagePositions: React.FC = () => {
         borderWidth: 1,
       },
     ],
-  };
+  }), [positions, displayInToken0, pool.token0.decimals, pool.token1.decimals]);
 
-  const chartOptions = {
+  const chartOptions = React.useMemo(() => ({
     responsive: true,
     plugins: {
       legend: {
@@ -623,7 +623,8 @@ const ManagePositions: React.FC = () => {
         beginAtZero: true,
       },
     },
-  };
+  }), [inRangePositionIndex, displayInToken0, pool.token0.symbol, pool.token1.symbol]);
+
   return (
     <div className="md:m-10 m-2">
       <div className="grid md:grid-flow-col grid-flow-row justify-items-stretch md:gap-4 gap-0 md:text-lg text-sm font-semibold">
@@ -642,7 +643,7 @@ const ManagePositions: React.FC = () => {
         </div>
         <div
           className={`${
-            inRangePositionIndex() ? "green-card" : "bg-red-900"
+            gridState.isInRange ? "green-card" : "bg-red-900"
           } rounded flex justify-center items-center mb-4 px-4 py-2`}
         >
           {gridState.isInRange ? "In Range" : "Not In Range"}

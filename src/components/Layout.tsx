@@ -5,6 +5,7 @@ import {
   useAppKitAccount,
 } from "@reown/appkit/react";
 import ChainSelector from "./ChainSelector";
+import { PowerIcon } from "@heroicons/react/24/outline";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { address, isConnected } = useAppKitAccount();
@@ -21,26 +22,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <div>
             {isConnected ? (
               <div className="flex items-center md:justify-start justify-between w-full">
-                <div className="m-2 pr-2 h-8 md:h-10 green-card rounded flex items-center text-sm md:text-base">
+                <div className="m-2 pr-2 h-10 green-card rounded flex items-center text-sm md:text-base">
                   <img
                     src={`https://effigy.im/a/${address}.svg`}
-                    className="rounded h-8 md:h-10 pr-2"
+                    className="rounded h-10 pr-2"
                   />
                   {`${address?.slice(0, 6)}...${address?.slice(-4)}`}
                 </div>
                 <ChainSelector />
                 <button
                   onClick={() => disconnect()}
-                  className="m-2 bg-gray-900 hover:bg-gray-800 text-white text-sm md:text-base px-4 py-2 rounded h-8 md:h-10 hover:cursor-pointer"
+                  className="m-2 bg-gray-900 hover:bg-gray-800 text-white text-sm md:text-base px-4 py-2 rounded h-10 hover:cursor-pointer"
                 >
-                  Disconnect
+                  <PowerIcon className="h-5 w-5" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center m-2">
                 <button
                   onClick={() => open({ view: "Connect", namespace: "eip155" })}
-                  className="bg-blue-500 text-white text-sm md:text-base px-4 py-2 rounded h-8 md:h-10 hover:cursor-pointer"
+                  className="bg-blue-500 text-white text-sm md:text-base px-4 py-2 rounded h-10 hover:cursor-pointer"
                 >
                   Connect Wallet
                 </button>
