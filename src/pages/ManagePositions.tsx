@@ -34,6 +34,7 @@ import {
   DeploymentConfig,
   GridPosition,
   GridState,
+  PoolInfo,
   PoolMetadata,
   Position,
   TokenMetadata,
@@ -46,6 +47,7 @@ import {
 } from "../utils/uniswapUtils";
 import Collapse from "../components/Collapse";
 import Button from "../components/Button";
+import { DistributionType } from "../components/DistributionType";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -193,11 +195,8 @@ const ManagePositions: React.FC = () => {
           activePositionsResponse.status == "success" &&
           poolInfoResponse.status == "success"
         ) {
-          const poolInfo = poolInfoResponse.result;
-          const gridPositions: GridPosition[] =
-            activePositionsResponse.result.map(
-              (result) => result as GridPosition
-            );
+          const poolInfo:PoolInfo = poolInfoResponse.result as PoolInfo;
+          const gridPositions: GridPosition[] = activePositionsResponse.result as GridPosition[];
 
           const slot0 = await readContract(config, {
             address: poolInfo.pool,
@@ -301,7 +300,7 @@ const ManagePositions: React.FC = () => {
                 : 0n,
             isInRange:
               isInRangeResponse.status == "success"
-                ? isInRangeResponse.result
+                ? isInRangeResponse.result as boolean
                 : false,
           });
           toast("Positions fetched successfully");
@@ -408,7 +407,8 @@ const ManagePositions: React.FC = () => {
       | "setMinFees"
       | "sweep"
       | "transferOwnership"
-      | "withdraw",
+      | "withdraw"
+      | "withdrawAvailable",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[] = []
   ) => {
@@ -418,7 +418,7 @@ const ManagePositions: React.FC = () => {
         abi: GridPositionManagerABI,
         functionName,
         args,
-        account: address,
+        account: address as `0x${string}`,
       });
       const hash = await writeContract(config, {
         address: contractAddress as `0x${string}`,
@@ -443,7 +443,8 @@ const ManagePositions: React.FC = () => {
     token0Amount: number,
     token1Amount: number,
     slippage: number,
-    gridType: number
+    gridType: number,
+    distributionType: number
   ) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
@@ -453,11 +454,20 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Position, Buy, Neutral or Sell");
       return;
     }
+    if (
+      !Number.isInteger(distributionType) ||
+      ![0, 1, 2, 3, 4, 5].includes(distributionType)
+    ) {
+      toast.error("Select a Distribution Type");
+      return;
+    }
+    console.log("Distribution Type", distributionType);
     await handleContractAction("deposit", [
       toRawTokenAmount(token0Amount, pool.token0.decimals),
       toRawTokenAmount(token1Amount, pool.token1.decimals),
       slippage * 100,
       gridType,
+      distributionType,
     ]);
     resetDeposit();
   };
@@ -466,7 +476,11 @@ const ManagePositions: React.FC = () => {
     await handleContractAction("withdraw");
   };
 
-  const handleCompound = async (slippage: number, gridType: number) => {
+  const handleWithdrawAvailable = async () => {
+    await handleContractAction("withdrawAvailable");
+  };
+
+  const handleCompound = async (slippage: number, gridType: number, distributionType: number) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
@@ -475,11 +489,18 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Position, Buy, Neutral or Sell");
       return;
     }
-    await handleContractAction("compound", [slippage * 100, gridType]);
+    if (
+      !Number.isInteger(distributionType) ||
+      ![0, 1, 2, 3, 4, 5].includes(distributionType)
+    ) {
+      toast.error("Select a Distribution Type");
+      return;
+    }
+    await handleContractAction("compound", [slippage * 100, gridType, distributionType]);
     resetCompound();
   };
 
-  const handleSweep = async (slippage: number, gridType: number) => {
+  const handleSweep = async (slippage: number, gridType: number, distributionType: number) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
@@ -488,7 +509,14 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Position, Buy, Neutral or Sell");
       return;
     }
-    await handleContractAction("sweep", [slippage * 100, gridType]);
+    if (
+      !Number.isInteger(distributionType) ||
+      ![0, 1, 2, 3, 4, 5].includes(distributionType)
+    ) {
+      toast.error("Select a Distribution Type");
+      return;
+    }
+    await handleContractAction("sweep", [slippage * 100, gridType, distributionType]);
     resetSweep();
   };
 
@@ -731,7 +759,8 @@ const ManagePositions: React.FC = () => {
                 data.token0Amount,
                 data.token1Amount,
                 data.slippage,
-                Number(data.gridType)
+                Number(data.gridType),
+                Number(data.distributionType)
               );
             })}
             className="green-card rounded-lg shadow-md p-4"
@@ -888,6 +917,9 @@ const ManagePositions: React.FC = () => {
                 </label>
               </div>
             </div>
+            <div className="mb-4">
+              <DistributionType {...registerDeposit("distributionType")} />
+            </div>
             <Button buttonStyle="primary" type="submit">
               Deposit
             </Button>
@@ -895,7 +927,7 @@ const ManagePositions: React.FC = () => {
 
           <form
             onSubmit={handleSubmitCompound((data) => {
-              handleCompound(data.slippage, Number(data.gridType));
+              handleCompound(data.slippage, Number(data.gridType), Number(data.distributionType));
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -950,6 +982,9 @@ const ManagePositions: React.FC = () => {
                 </label>
               </div>
             </div>
+            <div className="mb-4">
+              <DistributionType {...registerCompound("distributionType")} />
+            </div>
             <Button buttonStyle="primary" type="submit">
               Compound
             </Button>
@@ -957,7 +992,7 @@ const ManagePositions: React.FC = () => {
 
           <form
             onSubmit={handleSubmitSweep((data) => {
-              handleSweep(data.slippage, Number(data.gridType));
+              handleSweep(data.slippage, Number(data.gridType), Number(data.distributionType));
             })}
             className="green-card rounded-lg shadow-md p-4"
           >
@@ -1013,6 +1048,9 @@ const ManagePositions: React.FC = () => {
                 </label>
               </div>
             </div>
+            <div className="mb-4">
+              <DistributionType {...registerSweep("distributionType")} />
+            </div>
             <Button buttonStyle="primary" type="submit">
               Sweep
             </Button>
@@ -1028,6 +1066,22 @@ const ManagePositions: React.FC = () => {
             <h3 className="font-semibold text-lg mb-2">Withdraw</h3>
             <p className="text-sm text-gray-600 mb-4">
               Withdraw all liquidity from the grid positions.
+            </p>
+            <Button buttonStyle="primary" type="submit">
+              Withdraw
+            </Button>
+          </form>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleWithdrawAvailable();
+            }}
+            className="green-card rounded-lg shadow-md p-4"
+          >
+            <h3 className="font-semibold text-lg mb-2">Withdraw Available</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Withdraw available balances and fees from the grid positions.
             </p>
             <Button buttonStyle="primary" type="submit">
               Withdraw
