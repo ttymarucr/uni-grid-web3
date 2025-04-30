@@ -113,6 +113,7 @@ const ManagePositions: React.FC = () => {
     fee: 0,
     tick: 0,
   });
+  const [gridBalance, setGridBalance] = useState<number[]>([0, 0]);
 
   const chainId = useChainId({ config });
   const navigate = useNavigate();
@@ -319,9 +320,8 @@ const ManagePositions: React.FC = () => {
     displayInToken0,
   ]);
 
-  const fetchTokenBalance = async (tokenAddress: string) => {
-    if (!address || !isConnected) {
-      toast.error("Please connect your wallet.");
+  const fetchTokenBalance = async (tokenAddress?: string, account?: string) => {
+    if (!account || !tokenAddress) {
       return 0n;
     }
     try {
@@ -329,7 +329,7 @@ const ManagePositions: React.FC = () => {
         address: tokenAddress as `0x${string}`,
         abi: IERC20MetadataABI,
         functionName: "balanceOf",
-        args: [address],
+        args: [account],
       });
       return balance as bigint;
     } catch (error) {
@@ -586,6 +586,33 @@ const ManagePositions: React.FC = () => {
   }, [isConnected, address, fetchPositions]);
 
   useEffect(() => {
+    const fetchGridBalance = async () => {
+      if (pool.token0.address && pool.token1.address && contractAddress) {
+        const token0Balance = await fetchTokenBalance(
+          pool.token0.address,
+          contractAddress
+        );
+        const token1Balance = await fetchTokenBalance(
+          pool.token1.address,
+          contractAddress
+        );
+        setGridBalance([
+          fromRawTokenAmount(token0Balance, pool.token0.decimals),
+          fromRawTokenAmount(token1Balance, pool.token1.decimals),
+        ]);
+      }
+    };
+
+    fetchGridBalance();
+  }, [
+    contractAddress,
+    pool.token0.address,
+    pool.token0.decimals,
+    pool.token1.address,
+    pool.token1.decimals,
+  ]);
+
+  useEffect(() => {
     if (gridState) {
       resetGridQuantity({
         gridQuantity: gridState.gridQuantity.toString(),
@@ -760,6 +787,20 @@ const ManagePositions: React.FC = () => {
                 displayInToken0 ? pool.token0.decimals : pool.token1.decimals
               )}
             </p>
+            <p className="text-sm font-normal">
+              Grid Balance:{" "}
+              {formatValue(
+                gridBalance[0],
+                pool.token0.decimals
+              )}{" "}
+              {pool.token0.symbol}
+              {" / "}
+              {formatValue(
+                gridBalance[1],
+                pool.token1.decimals
+              )}{" "}
+              {pool.token1.symbol}
+            </p>
           </div>
         ) : (
           <p>No pool information available.</p>
@@ -805,10 +846,12 @@ const ManagePositions: React.FC = () => {
                   type="Button"
                   onClick={async () => {
                     const token0Balance = await fetchTokenBalance(
-                      pool.token0.address || "0x00"
+                      pool.token0.address,
+                      address
                     );
                     const token1Balance = await fetchTokenBalance(
-                      pool.token1.address || "0x00"
+                      pool.token1.address,
+                      address
                     );
                     resetDeposit({
                       token0Amount: fromRawTokenAmount(
@@ -855,10 +898,12 @@ const ManagePositions: React.FC = () => {
                   type="Button"
                   onClick={async () => {
                     const token0Balance = await fetchTokenBalance(
-                      pool.token0.address || "0x00"
+                      pool.token0.address,
+                      address
                     );
                     const token1Balance = await fetchTokenBalance(
-                      pool.token1.address || "0x00"
+                      pool.token1.address,
+                      address
                     );
                     resetDeposit({
                       token0Amount: fromRawTokenAmount(
