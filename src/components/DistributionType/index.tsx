@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 const options = [
   {
@@ -61,8 +61,6 @@ const options = [
 ];
 
 export const DistributionType = ({ ...props }) => {
-  const [selectedOption, setSelectedOption] = useState<number>();
-
   return (
     <div className="w-full inline-flex flex-wrap justify-center items-center">
       {options.map((option) => (
@@ -73,21 +71,10 @@ export const DistributionType = ({ ...props }) => {
           <input
             type="radio"
             {...props}
-            className="hidden"
+            className="hidden peer"
             value={option.value}
-            checked={selectedOption === option.value}
-            onChange={(e) => {
-              setSelectedOption(option.value);
-              props.onChange(e);
-            }}
           />
-          <div
-            className={`m-2 w-20 max-w-20 h-15 max-h-20 rounded-lg bg-gray-800 p-2 hover:bg-gray-700 ${
-              selectedOption === option.value
-                ? "border-2 border-white"
-                : "opacity-60"
-            }`}
-          >
+          <div className="peer-checked:border-2 peer-checked:border-white peer-checked:opacity-90 m-2 w-20 max-w-20 h-15 max-h-20 rounded-lg bg-gray-800 p-2 hover:bg-gray-700 opacity-60">
             <svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
               {option.svg}
             </svg>

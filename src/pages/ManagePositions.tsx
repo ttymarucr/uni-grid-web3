@@ -789,17 +789,10 @@ const ManagePositions: React.FC = () => {
               )}
             </p>
             <p className="text-sm font-normal">
-              Grid Balance:{" "}
-              {formatValue(
-                gridBalance[0],
-                pool.token0.decimals
-              )}{" "}
+              Grid Balance: {formatValue(gridBalance[0], pool.token0.decimals)}{" "}
               {pool.token0.symbol}
               {" / "}
-              {formatValue(
-                gridBalance[1],
-                pool.token1.decimals
-              )}{" "}
+              {formatValue(gridBalance[1], pool.token1.decimals)}{" "}
               {pool.token1.symbol}
             </p>
           </div>
@@ -947,9 +940,8 @@ const ManagePositions: React.FC = () => {
                 <label className="block font-semibold mb-2">Position</label>
                 <GridType
                   {...registerDeposit("gridType")}
-                  symbol={
-                    displayInToken0 ? pool.token0.symbol : pool.token1.symbol
-                  }
+                  token0Symbol={pool.token0.symbol}
+                  token1Symbol={pool.token1.symbol}
                 />
               </div>
               <div className="mb-4">
@@ -990,9 +982,8 @@ const ManagePositions: React.FC = () => {
                 <label className="block font-semibold mb-2">Position</label>
                 <GridType
                   {...registerCompound("gridType")}
-                  symbol={
-                    displayInToken0 ? pool.token0.symbol : pool.token1.symbol
-                  }
+                  token0Symbol={pool.token0.symbol}
+                  token1Symbol={pool.token1.symbol}
                 />
               </div>
               <div className="mb-4">
@@ -1034,9 +1025,8 @@ const ManagePositions: React.FC = () => {
                 <label className="block font-semibold mb-2">Position</label>
                 <GridType
                   {...registerSweep("gridType")}
-                  symbol={
-                    displayInToken0 ? pool.token0.symbol : pool.token1.symbol
-                  }
+                  token0Symbol={pool.token0.symbol}
+                  token1Symbol={pool.token1.symbol}
                 />
               </div>
               <div className="mb-4">
