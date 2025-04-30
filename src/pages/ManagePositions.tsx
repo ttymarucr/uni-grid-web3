@@ -48,6 +48,7 @@ import {
 import Collapse from "../components/Collapse";
 import Button from "../components/Button";
 import { DistributionType } from "../components/DistributionType";
+import { GridType } from "../components/GridType";
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -101,7 +102,7 @@ const ManagePositions: React.FC = () => {
     token1MinFees: 0n,
     token0Liquidity: 0n,
     token1Liquidity: 0n,
-    isInRange: false,
+    isInRange: true,
     gridStep: 0n,
     gridQuantity: 0n,
   });
@@ -195,8 +196,9 @@ const ManagePositions: React.FC = () => {
           activePositionsResponse.status == "success" &&
           poolInfoResponse.status == "success"
         ) {
-          const poolInfo:PoolInfo = poolInfoResponse.result as PoolInfo;
-          const gridPositions: GridPosition[] = activePositionsResponse.result as GridPosition[];
+          const poolInfo: PoolInfo = poolInfoResponse.result as PoolInfo;
+          const gridPositions: GridPosition[] =
+            activePositionsResponse.result as GridPosition[];
 
           const slot0 = await readContract(config, {
             address: poolInfo.pool,
@@ -300,7 +302,7 @@ const ManagePositions: React.FC = () => {
                 : 0n,
             isInRange:
               isInRangeResponse.status == "success"
-                ? isInRangeResponse.result as boolean
+                ? (isInRangeResponse.result as boolean)
                 : false,
           });
           toast("Positions fetched successfully");
@@ -461,7 +463,6 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Distribution Type");
       return;
     }
-    console.log("Distribution Type", distributionType);
     await handleContractAction("deposit", [
       toRawTokenAmount(token0Amount, pool.token0.decimals),
       toRawTokenAmount(token1Amount, pool.token1.decimals),
@@ -480,7 +481,11 @@ const ManagePositions: React.FC = () => {
     await handleContractAction("withdrawAvailable");
   };
 
-  const handleCompound = async (slippage: number, gridType: number, distributionType: number) => {
+  const handleCompound = async (
+    slippage: number,
+    gridType: number,
+    distributionType: number
+  ) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
@@ -496,11 +501,19 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Distribution Type");
       return;
     }
-    await handleContractAction("compound", [slippage * 100, gridType, distributionType]);
+    await handleContractAction("compound", [
+      slippage * 100,
+      gridType,
+      distributionType,
+    ]);
     resetCompound();
   };
 
-  const handleSweep = async (slippage: number, gridType: number, distributionType: number) => {
+  const handleSweep = async (
+    slippage: number,
+    gridType: number,
+    distributionType: number
+  ) => {
     if (Number(slippage) > 5) {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
@@ -516,7 +529,11 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Distribution Type");
       return;
     }
-    await handleContractAction("sweep", [slippage * 100, gridType, distributionType]);
+    await handleContractAction("sweep", [
+      slippage * 100,
+      gridType,
+      distributionType,
+    ]);
     resetSweep();
   };
 
@@ -763,297 +780,227 @@ const ManagePositions: React.FC = () => {
                 Number(data.distributionType)
               );
             })}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
-            <h3 className="font-semibold text-lg mb-2">Deposit</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Add liquidity to the grid positions by specifying token amounts,
-              slippage, and grid type.
-            </p>
-            <div className="flex items-center mb-2">
-              <input
-                {...registerDeposit("token0Amount")}
-                type="number"
-                min={0}
-                step={1 / 10 ** (pool.token0.decimals || 18)}
-                placeholder={`${pool.token0.symbol} Amount`}
-                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-              <Button
-                buttonStyle="primary"
-                className="m-2"
-                type="Button"
-                onClick={async () => {
-                  const token0Balance = await fetchTokenBalance(
-                    pool.token0.address || "0x00"
-                  );
-                  const token1Balance = await fetchTokenBalance(
-                    pool.token1.address || "0x00"
-                  );
-                  resetDeposit({
-                    token0Amount: fromRawTokenAmount(
-                      token0Balance,
-                      pool.token0.decimals
-                    ).toFixed(pool.token0.decimals),
-                    token1Amount: fromRawTokenAmount(
-                      token1Balance,
-                      pool.token1.decimals
-                    ).toFixed(pool.token1.decimals),
-                    slippage: 0.1,
-                  });
-                }}
-              >
-                Max
-              </Button>
-              <Button
-                buttonStyle="primary"
-                type="Button"
-                onClick={() => {
-                  const { token0Amount } = getValuesDeposit();
-                  handleTokenApprove(
-                    pool.token0.address || "0x00",
-                    token0Amount,
-                    pool.token0.decimals
-                  );
-                }}
-              >
-                Approve
-              </Button>
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Deposit</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Add liquidity to the grid positions by specifying token amounts,
+                slippage, and grid type.
+              </p>
             </div>
-            <div className="flex items-center mb-2">
-              <input
-                {...registerDeposit("token1Amount")}
-                type="number"
-                min={0}
-                step={1 / 10 ** (pool.token1.decimals || 18)}
-                placeholder={`${pool.token1.symbol} Amount`}
-                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-              <Button
-                buttonStyle="primary"
-                className="m-2"
-                type="Button"
-                onClick={async () => {
-                  const token0Balance = await fetchTokenBalance(
-                    pool.token0.address || "0x00"
-                  );
-                  const token1Balance = await fetchTokenBalance(
-                    pool.token1.address || "0x00"
-                  );
-                  resetDeposit({
-                    token0Amount: fromRawTokenAmount(
-                      token0Balance,
+            <div className=" flex flex-col justify-between">
+              <div className="flex items-center mb-2">
+                <input
+                  {...registerDeposit("token0Amount")}
+                  type="number"
+                  min={0}
+                  step={1 / 10 ** (pool.token0.decimals || 18)}
+                  placeholder={`${pool.token0.symbol} Amount`}
+                  className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <Button
+                  buttonStyle="primary"
+                  className="m-2"
+                  type="Button"
+                  onClick={async () => {
+                    const token0Balance = await fetchTokenBalance(
+                      pool.token0.address || "0x00"
+                    );
+                    const token1Balance = await fetchTokenBalance(
+                      pool.token1.address || "0x00"
+                    );
+                    resetDeposit({
+                      token0Amount: fromRawTokenAmount(
+                        token0Balance,
+                        pool.token0.decimals
+                      ).toFixed(pool.token0.decimals),
+                      token1Amount: fromRawTokenAmount(
+                        token1Balance,
+                        pool.token1.decimals
+                      ).toFixed(pool.token1.decimals),
+                      slippage: 0.1,
+                    });
+                  }}
+                >
+                  Max
+                </Button>
+                <Button
+                  buttonStyle="primary"
+                  type="Button"
+                  onClick={() => {
+                    const { token0Amount } = getValuesDeposit();
+                    handleTokenApprove(
+                      pool.token0.address || "0x00",
+                      token0Amount,
                       pool.token0.decimals
-                    ).toFixed(pool.token0.decimals),
-                    token1Amount: fromRawTokenAmount(
-                      token1Balance,
-                      pool.token1.decimals
-                    ).toFixed(pool.token1.decimals),
-                    slippage: 0.1,
-                  });
-                }}
-              >
-                Max
-              </Button>
-              <Button
-                buttonStyle="primary"
-                type="Button"
-                onClick={() => {
-                  const { token1Amount } = getValuesDeposit();
-                  handleTokenApprove(
-                    pool.token1.address || "0x00",
-                    token1Amount,
-                    pool.token1.decimals
-                  );
-                }}
-              >
-                Approve
-              </Button>
-            </div>
-            <input
-              {...registerDeposit("slippage")}
-              type="number"
-              placeholder="Slippage (max 5%)"
-              step={0.01}
-              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <div className="mb-4">
-              <label className="block font-semibold mb-2">Position</label>
-              <div className="flex gap-2 text-sm">
-                <label className="flex-1">
-                  <input
-                    {...registerDeposit("gridType")}
-                    type="radio"
-                    value="1"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy{" "}
-                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                  </div>
-                </label>
-                <label className="flex-1">
-                  <input
-                    {...registerDeposit("gridType")}
-                    type="radio"
-                    value="0"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-gray-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Neutral
-                  </div>
-                </label>
-                <label className="flex-1">
-                  <input
-                    {...registerDeposit("gridType")}
-                    type="radio"
-                    value="2"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell{" "}
-                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                  </div>
-                </label>
+                    );
+                  }}
+                >
+                  Approve
+                </Button>
               </div>
+              <div className="flex items-center mb-2">
+                <input
+                  {...registerDeposit("token1Amount")}
+                  type="number"
+                  min={0}
+                  step={1 / 10 ** (pool.token1.decimals || 18)}
+                  placeholder={`${pool.token1.symbol} Amount`}
+                  className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <Button
+                  buttonStyle="primary"
+                  className="m-2"
+                  type="Button"
+                  onClick={async () => {
+                    const token0Balance = await fetchTokenBalance(
+                      pool.token0.address || "0x00"
+                    );
+                    const token1Balance = await fetchTokenBalance(
+                      pool.token1.address || "0x00"
+                    );
+                    resetDeposit({
+                      token0Amount: fromRawTokenAmount(
+                        token0Balance,
+                        pool.token0.decimals
+                      ).toFixed(pool.token0.decimals),
+                      token1Amount: fromRawTokenAmount(
+                        token1Balance,
+                        pool.token1.decimals
+                      ).toFixed(pool.token1.decimals),
+                      slippage: 0.1,
+                    });
+                  }}
+                >
+                  Max
+                </Button>
+                <Button
+                  buttonStyle="primary"
+                  type="Button"
+                  onClick={() => {
+                    const { token1Amount } = getValuesDeposit();
+                    handleTokenApprove(
+                      pool.token1.address || "0x00",
+                      token1Amount,
+                      pool.token1.decimals
+                    );
+                  }}
+                >
+                  Approve
+                </Button>
+              </div>
+              <input
+                {...registerDeposit("slippage")}
+                type="number"
+                placeholder="Slippage (max 5%)"
+                step={0.01}
+                className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <div className="mb-4">
+                <label className="block font-semibold mb-2">Position</label>
+                <GridType
+                  {...registerDeposit("gridType")}
+                  symbol={
+                    displayInToken0 ? pool.token0.symbol : pool.token1.symbol
+                  }
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block font-semibold mb-2">Distribution</label>
+                <DistributionType {...registerDeposit("distributionType")} />
+              </div>
+              <Button buttonStyle="primary" type="submit">
+                Deposit
+              </Button>
             </div>
-            <div className="mb-4">
-              <DistributionType {...registerDeposit("distributionType")} />
-            </div>
-            <Button buttonStyle="primary" type="submit">
-              Deposit
-            </Button>
           </form>
 
           <form
             onSubmit={handleSubmitCompound((data) => {
-              handleCompound(data.slippage, Number(data.gridType), Number(data.distributionType));
+              handleCompound(
+                data.slippage,
+                Number(data.gridType),
+                Number(data.distributionType)
+              );
             })}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
-            <h3 className="font-semibold text-lg mb-2">Compound</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Reinvest collected fees into the closest active position.
-            </p>
-            <input
-              {...registerCompound("slippage")}
-              type="number"
-              placeholder="Slippage (max 5%)"
-              step={0.01}
-              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <div className="mb-4">
-              <label className="block font-semibold mb-2">Position</label>
-              <div className="flex gap-2 text-sm">
-                <label className="flex-1">
-                  <input
-                    {...registerCompound("gridType")}
-                    type="radio"
-                    value="1"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy{" "}
-                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                  </div>
-                </label>
-                <label className="flex-1">
-                  <input
-                    {...registerCompound("gridType")}
-                    type="radio"
-                    value="0"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-gray-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Neutral
-                  </div>
-                </label>
-                <label className="flex-1">
-                  <input
-                    {...registerCompound("gridType")}
-                    type="radio"
-                    value="2"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell{" "}
-                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                  </div>
-                </label>
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Compound</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Reinvest collected fees into the closest active position.
+              </p>
+            </div>
+            <div className=" flex flex-col justify-between">
+              <input
+                {...registerCompound("slippage")}
+                type="number"
+                placeholder="Slippage (max 5%)"
+                step={0.01}
+                className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <div className="mb-4">
+                <label className="block font-semibold mb-2">Position</label>
+                <GridType
+                  {...registerCompound("gridType")}
+                  symbol={
+                    displayInToken0 ? pool.token0.symbol : pool.token1.symbol
+                  }
+                />
               </div>
+              <div className="mb-4">
+                <label className="block font-semibold mb-2">Distribution</label>
+                <DistributionType {...registerCompound("distributionType")} />
+              </div>
+              <Button buttonStyle="primary" type="submit">
+                Compound
+              </Button>
             </div>
-            <div className="mb-4">
-              <DistributionType {...registerCompound("distributionType")} />
-            </div>
-            <Button buttonStyle="primary" type="submit">
-              Compound
-            </Button>
           </form>
 
           <form
             onSubmit={handleSubmitSweep((data) => {
-              handleSweep(data.slippage, Number(data.gridType), Number(data.distributionType));
+              handleSweep(
+                data.slippage,
+                Number(data.gridType),
+                Number(data.distributionType)
+              );
             })}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
-            <h3 className="font-semibold text-lg mb-2">Sweep</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Remove liquidity from positions outside the price range and
-              redeposit tokens.
-            </p>
-            <input
-              {...registerSweep("slippage")}
-              type="number"
-              placeholder="Slippage (max 5%)"
-              step={0.01}
-              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <div className="mb-4">
-              <label className="block font-semibold mb-2">Position</label>
-              <div className="flex gap-2 text-sm">
-                <label className="flex-1">
-                  <input
-                    {...registerSweep("gridType")}
-                    type="radio"
-                    value="1"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-teal-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Buy{" "}
-                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                  </div>
-                </label>
-                <label className="flex-1">
-                  <input
-                    {...registerSweep("gridType")}
-                    type="radio"
-                    value="0"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-gray-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Neutral
-                  </div>
-                </label>
-                <label className="flex-1">
-                  <input
-                    {...registerSweep("gridType")}
-                    type="radio"
-                    value="2"
-                    className="hidden peer"
-                  />
-                  <div className="peer-checked:bg-red-500 peer-checked:text-white border border-gray-300 rounded-md text-center py-2 cursor-pointer hover:bg-gray-100 hover:text-black">
-                    Sell{" "}
-                    {displayInToken0 ? pool.token1.symbol : pool.token0.symbol}
-                  </div>
-                </label>
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Sweep</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Remove liquidity from positions outside the price range and
+                redeposit tokens.
+              </p>
+            </div>
+            <div className=" flex flex-col justify-between">
+              <input
+                {...registerSweep("slippage")}
+                type="number"
+                placeholder="Slippage (max 5%)"
+                step={0.01}
+                className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <div className="mb-4">
+                <label className="block font-semibold mb-2">Position</label>
+                <GridType
+                  {...registerSweep("gridType")}
+                  symbol={
+                    displayInToken0 ? pool.token0.symbol : pool.token1.symbol
+                  }
+                />
               </div>
+              <div className="mb-4">
+                <label className="block font-semibold mb-2">Distribution</label>
+                <DistributionType {...registerSweep("distributionType")} />
+              </div>
+              <Button buttonStyle="primary" type="submit">
+                Sweep
+              </Button>
             </div>
-            <div className="mb-4">
-              <DistributionType {...registerSweep("distributionType")} />
-            </div>
-            <Button buttonStyle="primary" type="submit">
-              Sweep
-            </Button>
           </form>
 
           <form
@@ -1061,7 +1008,7 @@ const ManagePositions: React.FC = () => {
               e.preventDefault();
               handleWithdraw();
             }}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Withdraw</h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -1077,7 +1024,7 @@ const ManagePositions: React.FC = () => {
               e.preventDefault();
               handleWithdrawAvailable();
             }}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Withdraw Available</h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -1093,7 +1040,7 @@ const ManagePositions: React.FC = () => {
               e.preventDefault();
               handleClose();
             }}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Close</h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -1108,7 +1055,7 @@ const ManagePositions: React.FC = () => {
             onSubmit={handleSubmitMinFees((data) => {
               handleSetMinFees(data.token0MinFees, data.token1MinFees);
             })}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Set Minimum Fees</h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -1138,7 +1085,7 @@ const ManagePositions: React.FC = () => {
             onSubmit={handleSubmitGridQuantity((data) => {
               handleSetGridQuantity(BigInt(data.gridQuantity));
             })}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Set Grid Quantity</h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -1160,7 +1107,7 @@ const ManagePositions: React.FC = () => {
             onSubmit={handleSubmitGridStep((data) => {
               handleSetGridStep(BigInt(data.gridStep));
             })}
-            className="green-card rounded-lg shadow-md p-4"
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Set Grid Step</h3>
             <p className="text-sm text-gray-600 mb-4">

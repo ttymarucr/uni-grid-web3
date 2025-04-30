@@ -1,9 +1,6 @@
 import React, { useState } from "react";
 
-export const DistributionType = ({...props}) => {
-  const [selectedOption, setSelectedOption] = useState<number>();
-
-  const options = [
+const options = [
     {
       label: "Flat",
       value: 0,
@@ -63,8 +60,11 @@ export const DistributionType = ({...props}) => {
     // },
   ];
 
+export const DistributionType = ({...props}) => {
+  const [selectedOption, setSelectedOption] = useState<number>();
+
   return (
-    <div className="inline-flex flex-wrap justify-center items-center">
+    <div className="w-full inline-flex flex-wrap justify-center items-center">
       {options.map((option) => (
         <label key={option.value} className="cursor-pointer flex flex-col items-center">
           <input
