@@ -18,6 +18,7 @@ By building on Uniswap, UniGrid ensures that all trades are executed in a decent
 - **Automated Grid Strategies**: Create and manage grid trading strategies with ease.
 - **Transparency**: All transactions are executed on-chain, ensuring trust and security.
 - **Customizable Parameters**: Define grid intervals, price ranges, and order sizes to suit your trading needs.
+- **Grid Liquidity Distribution**: Choose how liquidity is distributed across the grid to optimize your trading strategy.
 
 ## Limitations
 
@@ -28,14 +29,6 @@ While UniGrid provides powerful tools for grid trading on Uniswap, there are som
 - **No Guaranteed Profits**: While grid trading can be profitable in certain market conditions, it does not guarantee profits and carries inherent risks.
 
 ## Work in Progress
-
-- **Liquidity Distribution**: Allow the user to select from different distribution methods:
-  - Flat
-  - Curved
-  - Linear
-  - Sigmoid
-  - Fibonacci / Bid - Ask
-  - Logarithmic
 
 - **Automation**:
   - Compound

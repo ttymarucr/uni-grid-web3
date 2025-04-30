@@ -33,6 +33,7 @@ const About = () => {
         <li>Customizable grid parameters like intervals and price ranges.</li>
         <li>Transparent, on-chain transactions for trust and security.</li>
         <li>Compounding feature to reinvest profits automatically.</li>
+        <li>Choose grid liquidity distribution to optimize trading strategies.</li>
       </ul>
       <h2 className="text-2xl font-semibold mb-2">Get Started</h2>
       <p className="mb-4">
@@ -52,15 +53,7 @@ const About = () => {
         to learn how you can help improve UniGrid.
       </p>
       <p>
-        Donations to{" "}
-        <a
-          href="https://app.ens.domains/tty0.eth"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          tty0.eth
-        </a>
+        Donations to 0x737284cFc66fd5989F2AC866989d70Ae134227cB (tty0.eth)
       </p>
     </div>
   );

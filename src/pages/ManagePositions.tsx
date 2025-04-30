@@ -610,6 +610,7 @@ const ManagePositions: React.FC = () => {
     pool.token0.decimals,
     pool.token1.address,
     pool.token1.decimals,
+    positions,
   ]);
 
   useEffect(() => {
