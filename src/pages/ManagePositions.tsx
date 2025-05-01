@@ -6,6 +6,7 @@ import {
   simulateContract,
   readContract,
   estimateGas,
+  getPublicClient,
 } from "@wagmi/core";
 import { ToastContainer, toast } from "react-toastify";
 import {
@@ -19,8 +20,9 @@ import {
 import { Bar } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { useAppKitAccount } from "@reown/appkit/react";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { formatUnits, parseUnits, maxUint128 } from "viem";
+import { formatUnits, parseUnits, maxUint128, parseAbi } from "viem";
 import { useChainId } from "wagmi";
 import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import {
@@ -39,14 +41,12 @@ import {
   Position,
   TokenMetadata,
 } from "../types";
-import {
-  liquidityToTokenAmounts,
-  tickToPrice,
-} from "../utils/uniswapUtils";
+import { liquidityToTokenAmounts, tickToPrice } from "../utils/uniswapUtils";
 import Collapse from "../components/Collapse";
 import Button from "../components/Button";
 import { DistributionType } from "../components/DistributionType";
 import { GridType } from "../components/GridType";
+import { getLogs } from "viem/actions"; // Import getLogs from viem/actions
 
 // Register Chart.js components to avoid re-registration issues
 ChartJS.register(
@@ -91,6 +91,7 @@ function formatValue(value: number, decimals: number = 18): JSX.Element {
 
 const ManagePositions: React.FC = () => {
   const { contractAddress } = useParams<{ contractAddress: `0x${string}` }>();
+  const client = getPublicClient(config);
   const { address, isConnected } = useAppKitAccount();
   const [deploymentContracts, setDeploymentContracts] =
     useState<DeploymentConfig>({} as DeploymentConfig);
@@ -153,6 +154,69 @@ const ManagePositions: React.FC = () => {
   const toggleDisplayToken = () => {
     setDisplayInToken0((prev) => !prev);
   };
+
+  const historyQuery = useCallback(async () => {
+    if (contractAddress) {
+      try {
+        const logs = await getLogs(client, {
+          address: contractAddress as `0x${string}`,
+          events: parseAbi([
+            "event GridDeposit(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
+            "event Withdraw(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
+            "event Compound(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
+          ]),
+          fromBlock: 0n, // From block 0
+        });
+
+        const groupedLogs = logs.reduce((acc, log) => {
+          const blockNumber: string = log.blockNumber.toString();
+          if (!acc[blockNumber]) {
+            acc[blockNumber] = {
+              blockNumber,
+              event: log.eventName,
+              token0Amount: 0n,
+              token1Amount: 0n,
+              timestamp: "",
+              owner: `${log.args.owner?.slice(0, 6)}...${log.args.owner?.slice(
+                -4
+              )}`,
+            };
+          }
+          acc[blockNumber].token0Amount += log.args.token0Amount || 0n;
+          acc[blockNumber].token1Amount += log.args.token1Amount || 0n;
+          return acc;
+        }, {} as Record<string, { blockNumber: string; timestamp: string; token0Amount: bigint; token1Amount: bigint; owner: string; event: string }>);
+
+        const logPromises = await Promise.all(
+          Object.values(groupedLogs).map(async (log) => {
+            const block = await client.getBlock({
+              blockNumber: BigInt(log.blockNumber),
+            });
+            return {
+              ...log,
+              timestamp: new Date(
+                Number(block.timestamp) * 1000
+              ).toLocaleString(),
+            };
+          })
+        );
+        return logPromises.sort(
+          (a, b) => Number(b.blockNumber) - Number(a.blockNumber)
+        );
+      } catch (error) {
+        console.error("Error fetching history:", error);
+      }
+    }
+  }, [client, contractAddress]);
+
+  const {
+    data: history,
+    isLoading: isHistoryLoading,
+    refetch: refetchHistory,
+  } = useQuery({
+    queryKey: ["history", isConnected, address],
+    queryFn: historyQuery,
+  });
 
   const fetchPositions = useCallback(async () => {
     if (
@@ -265,8 +329,12 @@ const ManagePositions: React.FC = () => {
                   token1Meta.decimals,
                   token0Meta.decimals
                 )[displayInToken0 ? 1 : 0],
-                feesToken0: Number(formatUnits(feesToken0, token0Meta.decimals)),
-                feesToken1: Number(formatUnits(feesToken1, token1Meta.decimals)),
+                feesToken0: Number(
+                  formatUnits(feesToken0, token0Meta.decimals)
+                ),
+                feesToken1: Number(
+                  formatUnits(feesToken1, token1Meta.decimals)
+                ),
                 liquidityToken0: liq.amount0,
                 liquidityToken1: liq.amount1,
               };
@@ -431,6 +499,7 @@ const ManagePositions: React.FC = () => {
       });
       toast(`Transaction Hash: ${hash}`);
       fetchPositions();
+      refetchHistory();
     } catch (error) {
       toast.error(
         `Error executing ${functionName}: ${(error as Error).message}`
@@ -461,7 +530,6 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Distribution Type");
       return;
     }
-    console.log(token1Amount, parseUnits(token1Amount.toString(), pool.token1.decimals));
     await handleContractAction("deposit", [
       parseUnits(token0Amount.toString(), pool.token0.decimals),
       parseUnits(token1Amount.toString(), pool.token1.decimals),
@@ -766,7 +834,10 @@ const ManagePositions: React.FC = () => {
                 <Button
                   buttonStyle="primary"
                   className="mr-2"
-                  onClick={fetchPositions}
+                  onClick={() => {
+                    fetchPositions();
+                    refetchHistory();
+                  }}
                 >
                   <ArrowPathIcon className="h-5 w-5" />
                 </Button>
@@ -1161,7 +1232,7 @@ const ManagePositions: React.FC = () => {
           </form>
         </div>
       </Collapse>
-      <div>
+      <div className="mb-4">
         <div className="grid grid-cols-4 md:gap-0 gap-1 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Position</div>
           <div>Price Range</div>
@@ -1234,6 +1305,41 @@ const ManagePositions: React.FC = () => {
           );
         })}
       </div>
+      <Collapse title="History" onClick={refetchHistory}>
+        <div className="grid grid-cols-5 gap-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
+          <div>Event</div>
+          <div>Sender</div>
+          <div>{pool.token0.symbol}</div>
+          <div>{pool.token1.symbol}</div>
+          <div>Date</div>
+        </div>
+        {isHistoryLoading ? (
+          <p className="flex justify-center items-center h-32">Loading...</p>
+        ) : (
+          history?.map((entry, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-5 gap-4 border-b border-gray-200 py-2"
+            >
+              <div>{entry.event}</div>
+              <div className="truncate">{entry.owner}</div>
+              <div>
+                {formatValue(
+                  Number(formatUnits(entry.token0Amount, pool.token0.decimals)),
+                  pool.token0.decimals
+                )}
+              </div>
+              <div>
+                {formatValue(
+                  Number(formatUnits(entry.token1Amount, pool.token1.decimals)),
+                  pool.token1.decimals
+                )}
+              </div>
+              <div>{entry.timestamp}</div>
+            </div>
+          ))
+        )}
+      </Collapse>
       <ToastContainer />
     </div>
   );

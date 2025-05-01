@@ -2,17 +2,21 @@ import React, { useState } from "react";
 
 interface CollapseProps {
   title: string;
+  onClick?: () => void;
   open?: boolean;
   collapsible?: boolean;
   children: React.ReactNode;
 }
 
-const Collapse: React.FC<CollapseProps> = ({ title, open=false, collapsible=true, children }) => {
+const Collapse: React.FC<CollapseProps> = ({ title, open=false, collapsible=true, onClick, children }) => {
   const [isOpen, setIsOpen] = useState(open);
 
   const toggleCollapse = () => {
     if (collapsible) {
       setIsOpen((prev) => !prev);
+    }
+    if (onClick) {
+      onClick();
     }
   };
 
