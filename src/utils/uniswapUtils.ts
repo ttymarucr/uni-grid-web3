@@ -1,11 +1,12 @@
 import JSBI from "jsbi";
-import { Fraction, Price, Token } from "@uniswap/sdk-core";
+import { Fraction, Price, Token, CurrencyAmount } from "@uniswap/sdk-core";
 import {
   TickMath,
   SqrtPriceMath,
   encodeSqrtRatioX96,
   nearestUsableTick,
 } from "@uniswap/v3-sdk";
+import { formatUnits, parseUnits } from "viem";
 
 // constants used internally but not expected to be used externally
 export const NEGATIVE_ONE = JSBI.BigInt(-1);
@@ -52,29 +53,9 @@ export const liquidityToTokenAmounts = (
   );
 
   return {
-    amount0: fromRawTokenAmount(BigInt(amount0.toString()), token0Decimals),
-    amount1: fromRawTokenAmount(BigInt(amount1.toString()), token1Decimals),
+    amount0: Number(formatUnits(BigInt(amount0.toString()), token0Decimals)),
+    amount1: Number(formatUnits(BigInt(amount1.toString()), token1Decimals)),
   };
-};
-
-export const fromRawTokenAmount = (
-  amount: bigint,
-  tokenDecimals: number = 18
-): number => {
-  // Convert the raw value to a human-readable format using token decimals
-  const tokenValue = new Fraction(
-    amount.toString(),
-    JSBI.exponentiate(JSBI.BigInt(10), JSBI.BigInt(tokenDecimals)).toString()
-  );
-  return Number(tokenValue.toFixed(tokenDecimals));
-};
-
-export const toRawTokenAmount = (
-  amount: number,
-  tokenDecimals: number = 18
-): bigint => {
-  const scale = Math.pow(10, tokenDecimals); // Scale factor (10^decimals)
-  return BigInt(Math.floor(amount * scale)); // Multiply and convert to bigint
 };
 
 /**

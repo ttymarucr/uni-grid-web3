@@ -20,7 +20,7 @@ import { Bar } from "react-chartjs-2";
 import annotationPlugin from "chartjs-plugin-annotation";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useForm } from "react-hook-form";
-import { maxUint128 } from "viem";
+import { formatUnits, parseUnits, maxUint128 } from "viem";
 import { useChainId } from "wagmi";
 import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import {
@@ -40,10 +40,8 @@ import {
   TokenMetadata,
 } from "../types";
 import {
-  fromRawTokenAmount,
   liquidityToTokenAmounts,
   tickToPrice,
-  toRawTokenAmount,
 } from "../utils/uniswapUtils";
 import Collapse from "../components/Collapse";
 import Button from "../components/Button";
@@ -267,8 +265,8 @@ const ManagePositions: React.FC = () => {
                   token1Meta.decimals,
                   token0Meta.decimals
                 )[displayInToken0 ? 1 : 0],
-                feesToken0: fromRawTokenAmount(feesToken0, token0Meta.decimals),
-                feesToken1: fromRawTokenAmount(feesToken1, token1Meta.decimals),
+                feesToken0: Number(formatUnits(feesToken0, token0Meta.decimals)),
+                feesToken1: Number(formatUnits(feesToken1, token1Meta.decimals)),
                 liquidityToken0: liq.amount0,
                 liquidityToken1: liq.amount1,
               };
@@ -351,20 +349,20 @@ const ManagePositions: React.FC = () => {
   const liquidity = useCallback(
     () =>
       displayInToken0
-        ? fromRawTokenAmount(gridState.token1Liquidity, pool.token1.decimals) *
+        ? Number(formatUnits(gridState.token1Liquidity, pool.token1.decimals)) *
             tickToPrice(
               pool.tick,
               pool.token1.decimals,
               pool.token0.decimals
             )[1] +
-          fromRawTokenAmount(gridState.token0Liquidity, pool.token0.decimals)
-        : fromRawTokenAmount(gridState.token0Liquidity, pool.token0.decimals) *
+          Number(formatUnits(gridState.token0Liquidity, pool.token0.decimals))
+        : Number(formatUnits(gridState.token0Liquidity, pool.token0.decimals)) *
             tickToPrice(
               pool.tick,
               pool.token1.decimals,
               pool.token0.decimals
             )[0] +
-          fromRawTokenAmount(gridState.token1Liquidity, pool.token1.decimals),
+          Number(formatUnits(gridState.token1Liquidity, pool.token1.decimals)),
     [
       displayInToken0,
       gridState.token0Liquidity,
@@ -463,9 +461,10 @@ const ManagePositions: React.FC = () => {
       toast.error("Select a Distribution Type");
       return;
     }
+    console.log(token1Amount, parseUnits(token1Amount.toString(), pool.token1.decimals));
     await handleContractAction("deposit", [
-      toRawTokenAmount(token0Amount, pool.token0.decimals),
-      toRawTokenAmount(token1Amount, pool.token1.decimals),
+      parseUnits(token0Amount.toString(), pool.token0.decimals),
+      parseUnits(token1Amount.toString(), pool.token1.decimals),
       slippage * 100,
       gridType,
       distributionType,
@@ -546,8 +545,8 @@ const ManagePositions: React.FC = () => {
     token1MinFees: number
   ) => {
     await handleContractAction("setMinFees", [
-      toRawTokenAmount(token0MinFees, pool.token0.decimals),
-      toRawTokenAmount(token1MinFees, pool.token1.decimals),
+      parseUnits(token0MinFees.toString(), pool.token0.decimals),
+      parseUnits(token1MinFees.toString(), pool.token1.decimals),
     ]);
     resetMinFees();
   };
@@ -572,7 +571,7 @@ const ManagePositions: React.FC = () => {
         address: tokenAddress as `0x${string}`,
         abi: IERC20MetadataABI,
         functionName: "approve",
-        args: [contractAddress, toRawTokenAmount(amount, decimals)],
+        args: [contractAddress, parseUnits(amount.toString(), decimals)],
       });
       toast.success("Token approved successfully.");
     } catch (error) {
@@ -597,8 +596,8 @@ const ManagePositions: React.FC = () => {
           contractAddress
         );
         setGridBalance([
-          fromRawTokenAmount(token0Balance, pool.token0.decimals),
-          fromRawTokenAmount(token1Balance, pool.token1.decimals),
+          Number(formatUnits(token0Balance, pool.token0.decimals)),
+          Number(formatUnits(token1Balance, pool.token1.decimals)),
         ]);
       }
     };
@@ -848,14 +847,14 @@ const ManagePositions: React.FC = () => {
                       address
                     );
                     resetDeposit({
-                      token0Amount: fromRawTokenAmount(
+                      token0Amount: formatUnits(
                         token0Balance,
                         pool.token0.decimals
-                      ).toFixed(pool.token0.decimals),
-                      token1Amount: fromRawTokenAmount(
+                      ),
+                      token1Amount: formatUnits(
                         token1Balance,
                         pool.token1.decimals
-                      ).toFixed(pool.token1.decimals),
+                      ),
                       slippage: 0.1,
                     });
                   }}
@@ -900,14 +899,14 @@ const ManagePositions: React.FC = () => {
                       address
                     );
                     resetDeposit({
-                      token0Amount: fromRawTokenAmount(
+                      token0Amount: formatUnits(
                         token0Balance,
                         pool.token0.decimals
-                      ).toFixed(pool.token0.decimals),
-                      token1Amount: fromRawTokenAmount(
+                      ),
+                      token1Amount: formatUnits(
                         token1Balance,
                         pool.token1.decimals
-                      ).toFixed(pool.token1.decimals),
+                      ),
                       slippage: 0.1,
                     });
                   }}

@@ -16,7 +16,7 @@ import {
   readContract,
   writeContract,
 } from "@wagmi/core";
-import { parseAbiItem } from "viem";
+import { formatUnits, parseAbiItem } from "viem";
 import { ToastContainer, toast } from "react-toastify";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
@@ -25,7 +25,6 @@ import { useChainId } from "wagmi";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 import { DeploymentConfig, GridDeployment, PoolInfo } from "../types";
 import {
-  fromRawTokenAmount,
   priceToTick,
   tickToPrice,
 } from "../utils/uniswapUtils";
@@ -594,15 +593,15 @@ const GridManager = () => {
                             <strong>Liquidity:</strong>
                           </p>
                           <p>
-                            {fromRawTokenAmount(
+                            {formatUnits(
                               deployment.token0Liquidity,
                               deployment.token0Decimals
-                            ).toFixed(6)}{" "}
+                            )}{" "}
                             {deployment.token0Symbol} /{" "}
-                            {fromRawTokenAmount(
+                            {formatUnits(
                               deployment.token1Liquidity,
                               deployment.token1Decimals
-                            ).toFixed(6)}{" "}
+                            )}{" "}
                             {deployment.token1Symbol}
                           </p>
                           <p>
@@ -651,15 +650,15 @@ const GridManager = () => {
                         <strong>Liquidity:</strong>
                       </p>
                       <p>
-                        {fromRawTokenAmount(
+                        {formatUnits(
                           deployment.token0Liquidity,
                           deployment.token0Decimals
-                        ).toFixed(6)}{" "}
+                        )}{" "}
                         {deployment.token0Symbol} /{" "}
-                        {fromRawTokenAmount(
+                        {formatUnits(
                           deployment.token1Liquidity,
                           deployment.token1Decimals
-                        ).toFixed(6)}{" "}
+                        )}{" "}
                         {deployment.token1Symbol}
                       </p>
                       <p>
