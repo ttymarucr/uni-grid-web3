@@ -1,4 +1,5 @@
 import React from "react";
+import Collapse from "../components/Collapse";
 
 const About = () => {
   return (
@@ -9,6 +10,41 @@ const About = () => {
         empowers users to automate their trading strategies by creating
         grid-based trading patterns directly on the Uniswap protocol.
       </p>
+      <Collapse title="Liquidity Section" collapsible={false} open={true}>
+        <p className="mb-4">
+          The Liquidity section provides an overview of the current liquidity in
+          the grid, including token balances and the total liquidity available
+          for trading.
+        </p>
+        <img
+          src="/uni-grid-web3/liquidity.png"
+          alt="Liquidity Section"
+          className="mb-2"
+        />
+      </Collapse>
+      <Collapse title="Actions Section" collapsible={false} open={true}>
+        <p className="mb-4">
+          The Actions section allows users to perform various operations such as
+          depositing, withdrawing, compounding, and sweeping liquidity within
+          the grid.
+        </p>
+        <img
+          src="/uni-grid-web3/actions.png"
+          alt="Actions Section"
+          className="mb-2"
+        />
+      </Collapse>
+      <Collapse title="Positions Section" collapsible={false} open={true}>
+        <p className="mb-4">
+          The Positions section displays all active grid positions, including
+          price ranges, liquidity, and uncollected fees for each position.
+        </p>
+        <img
+          src="/uni-grid-web3/positions.png"
+          alt="Positions Section"
+          className="mb-2"
+        />
+      </Collapse>
       <h2 className="text-2xl font-semibold mb-2">What is Grid Trading?</h2>
       <p className="mb-4">
         Grid trading is a popular strategy that involves placing buy and sell
@@ -33,13 +69,10 @@ const About = () => {
         <li>Customizable grid parameters like intervals and price ranges.</li>
         <li>Transparent, on-chain transactions for trust and security.</li>
         <li>Compounding feature to reinvest profits automatically.</li>
-        <li>Choose grid liquidity distribution to optimize trading strategies.</li>
+        <li>
+          Choose grid liquidity distribution to optimize trading strategies.
+        </li>
       </ul>
-      <h2 className="text-2xl font-semibold mb-2">Get Started</h2>
-      <p className="mb-4">
-        To start using UniGrid, connect your wallet and explore the available
-        tools to create and manage your grid trading strategies.
-      </p>
       <h2 className="text-2xl font-semibold mb-2">Learn More</h2>
       <p>
         For more details, check out our{" "}
@@ -52,9 +85,7 @@ const About = () => {
         </a>{" "}
         to learn how you can help improve UniGrid.
       </p>
-      <p>
-        Donations to 0x737284cFc66fd5989F2AC866989d70Ae134227cB (tty0.eth)
-      </p>
+      <p>Donations to 0x737284cFc66fd5989F2AC866989d70Ae134227cB (tty0.eth)</p>
     </div>
   );
 };
