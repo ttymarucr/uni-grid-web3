@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Courier New', Courier, monospace;
   line-height: 1.5;
   font-weight: 400;
 
@@ -42,6 +42,46 @@ h1 {
   background-color: rgba(75, 192, 192, 0.6);
   border-color: rgba(75, 192, 192, 1);
   border-width: 1;
+}
+
+.bg-brown-50 {
+  background-color: #f5f7f8;
+}
+
+.bg-brown-100 {
+  background-color: #e4ebed;
+}
+
+.bg-brown-200 {
+  background-color: #c9d7db;
+}
+
+.bg-brown-300 {
+  background-color: #a6bcc4;
+}
+
+.bg-brown-400 {
+  background-color: #7d9da9;
+}
+
+.bg-brown-500 {
+  background-color: #213547;
+}
+
+.bg-brown-600 {
+  background-color: #1d2f3f;
+}
+
+.bg-brown-700 {
+  background-color: #172635;
+}
+
+.bg-brown-800 {
+  background-color: #111c27;
+}
+
+.bg-brown-900 {
+  background-color: #0b121a;
 }
 
 @media (prefers-color-scheme: light) {
