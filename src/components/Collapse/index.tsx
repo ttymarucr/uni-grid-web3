@@ -27,7 +27,7 @@ const Collapse: React.FC<CollapseProps> = ({
   };
 
   return (
-    <div className="rounded-md shadow-md md:mb-10 mb-2">
+    <div className="rounded-md shadow-md md:mb-10 mb-2 text-sm md:text-base">
       <button
         onClick={toggleCollapse}
         className="text-left px-4 py-2 green-card rounded-tl-md rounded-tr-md md:text-lg text-sm font-semibold flex justify-between items-center"

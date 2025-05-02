@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { config } from "../../config";
 import { useChainId, useChains } from "wagmi";
 import { switchChain } from "@wagmi/core";
+import { NetworkIcon } from '@web3icons/react'
+import { config } from "../../config";
 import Button from "../Button";
 
 interface ChainSelectorProps {
@@ -34,7 +35,8 @@ const ChainSelector: React.FC<ChainSelectorProps> = ({ onSwitch }) => {
         buttonStyle="primary"
         onClick={() => setIsDropdownVisible(true)}
       >
-        {chains.find((c) => c.id === chainId)?.name || "Select Chain"}
+        {chains.find((c) => c.id === chainId)? <NetworkIcon chainId={chainId} variant="branded" /> : "Select Chain"}
+        
       </Button>
       {isDropdownVisible && (
         <div className="absolute mt-2 bg-white text-gray-800 text-sm md:text-base border shadow-lg h-10">
@@ -45,10 +47,10 @@ const ChainSelector: React.FC<ChainSelectorProps> = ({ onSwitch }) => {
                 handleSwitchChain(availableChain.id);
               }}
               className={`block px-4 py-2 text-left w-full hover:cursor-pointer ${
-                chainId === availableChain.id ? "bg-gray-200" : "bg-white"
-              } hover:bg-gray-100`}
+                chainId === availableChain.id ? "bg-gray-300" : "bg-white"
+              } hover:bg-gray-200`}
             >
-              {availableChain.name}
+              <NetworkIcon chainId={availableChain.id} variant="mono" color="#000" />{availableChain.name}
             </button>
           ))}
         </div>

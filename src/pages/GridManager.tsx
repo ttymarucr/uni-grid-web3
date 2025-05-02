@@ -641,7 +641,7 @@ const GridManager = () => {
               </Button>
             </div>
           </Collapse>
-          <Collapse title="Exited Grids">
+          <Collapse title="Exited Grids" open={true}>
             <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
               {exitedGrids?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

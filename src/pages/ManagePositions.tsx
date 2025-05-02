@@ -22,7 +22,7 @@ import annotationPlugin from "chartjs-plugin-annotation";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { formatUnits, parseUnits, maxUint128, parseAbi } from "viem";
+import { formatUnits, parseUnits, maxUint128, parseAbi, BaseError, ContractFunctionRevertedError } from "viem";
 import { useChainId } from "wagmi";
 import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import {
@@ -30,6 +30,7 @@ import {
   IUniswapV3PoolABI,
   INonfungiblePositionManagerABI,
   IERC20MetadataABI,
+  ErrorCodeMessages,
 } from "../abis";
 import { config, deploymentConfigMap } from "../config";
 import {
@@ -481,6 +482,34 @@ const ManagePositions: React.FC = () => {
     args: any[] = []
   ) => {
     try {
+      try {
+        await simulateContract(config, {
+          address: contractAddress as `0x${string}`,
+          abi: GridPositionManagerABI,
+          functionName,
+          args,
+          account: address as `0x${string}`,
+        });
+      } catch (err) {
+        if (err instanceof BaseError) {
+          const revertError = err.walk(
+            (err) => err instanceof ContractFunctionRevertedError
+          );
+          if (revertError instanceof ContractFunctionRevertedError) {
+            const errorName = revertError.data?.args?.[0] ?? "";
+            const message = ErrorCodeMessages[errorName];
+            if (message) {
+              toast.error(`Error: ${message}`);
+            } else {
+              toast.error(`Error: ${errorName}`);
+            }
+          } else {
+            toast.error("Error: " + err.message);
+            console.error("Error:", err);
+          }
+        }
+        return;
+      }
       const eGas = await estimateGas(config, {
         address: contractAddress as `0x${string}`,
         abi: GridPositionManagerABI,
@@ -833,15 +862,16 @@ const ManagePositions: React.FC = () => {
         {pool ? (
           <div>
             <h2 className="text-xl font-semibold">
-              Pool{" "}
+              Pool{" ("}
               <a
                 href={`https://app.uniswap.org/explore/pools/${deploymentContracts.uniswapChain}/${pool.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline"
               >
-                ({pool.token0.symbol}/{pool.token1.symbol})
-              </a>{" "}
+                {pool.token0.symbol}/{pool.token1.symbol}
+              </a>
+              {") "}
               {`${pool.fee / 10000}%`}
               <div className="flex float-right text-sm font-normal">
                 <Button
@@ -902,7 +932,7 @@ const ManagePositions: React.FC = () => {
           >
             <div>
               <h3 className="font-semibold text-lg mb-2">Deposit</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm font-bold text-gray-900/60 mb-4">
                 Add liquidity to the grid positions by specifying token amounts,
                 slippage, and grid type.
               </p>
@@ -1049,7 +1079,7 @@ const ManagePositions: React.FC = () => {
           >
             <div>
               <h3 className="font-semibold text-lg mb-2">Compound</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm font-bold text-gray-900/60 mb-4">
                 Reinvest collected fees into the closest active position.
               </p>
             </div>
@@ -1091,7 +1121,7 @@ const ManagePositions: React.FC = () => {
           >
             <div>
               <h3 className="font-semibold text-lg mb-2">Sweep</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm font-bold text-gray-900/60 mb-4">
                 Remove liquidity from positions outside the price range and
                 redeposit tokens.
               </p>
@@ -1130,7 +1160,7 @@ const ManagePositions: React.FC = () => {
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Withdraw</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
               Withdraw all liquidity from the grid positions.
             </p>
             <Button buttonStyle="primary" type="submit">
@@ -1146,7 +1176,7 @@ const ManagePositions: React.FC = () => {
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Withdraw Available</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
               Withdraw available balances and fees from the grid positions.
             </p>
             <Button buttonStyle="primary" type="submit">
@@ -1162,7 +1192,7 @@ const ManagePositions: React.FC = () => {
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Close</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
               Close all active positions in the grid.
             </p>
             <Button buttonStyle="primary" type="submit">
@@ -1177,7 +1207,7 @@ const ManagePositions: React.FC = () => {
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Set Minimum Fees</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
               Define the minimum fees required for token0 and token1 before
               compounding.
             </p>
@@ -1207,7 +1237,7 @@ const ManagePositions: React.FC = () => {
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Set Grid Quantity</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
               Adjust the total number of grid positions for liquidity
               management.
             </p>
@@ -1229,7 +1259,7 @@ const ManagePositions: React.FC = () => {
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
             <h3 className="font-semibold text-lg mb-2">Set Grid Step</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
               Modify the step size between grid positions for liquidity
               allocation.
             </p>
@@ -1245,7 +1275,7 @@ const ManagePositions: React.FC = () => {
           </form>
         </div>
       </Collapse>
-      <div className="mb-4">
+      <div className="mb-4 text-sm md:text-base">
         <div className="grid grid-cols-4 md:gap-0 gap-1 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Position</div>
           <div>Price Range</div>
@@ -1321,7 +1351,7 @@ const ManagePositions: React.FC = () => {
       <Collapse title="History" onClick={refetchHistory}>
         <div className="grid grid-cols-5 gap-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
           <div>Event</div>
-          <div>Sender</div>
+          <div className="hidden md:inline-block">Sender</div>
           <div>{pool.token0.symbol}</div>
           <div>{pool.token1.symbol}</div>
           <div>Date</div>
@@ -1334,15 +1364,17 @@ const ManagePositions: React.FC = () => {
               key={index}
               className="grid grid-cols-5 gap-4 border-b border-gray-200 py-2"
             >
-              <div>{entry.event}</div>
-              <div className="truncate">{entry.owner}</div>
-              <div>
+              <div className="truncate">{entry.event}</div>
+              <div className="hidden md:inline-block truncate">
+                {entry.owner}
+              </div>
+              <div className="truncate">
                 {formatValue(
                   Number(formatUnits(entry.token0Amount, pool.token0.decimals)),
                   pool.token0.decimals
                 )}
               </div>
-              <div>
+              <div className="truncate">
                 {formatValue(
                   Number(formatUnits(entry.token1Amount, pool.token1.decimals)),
                   pool.token1.decimals

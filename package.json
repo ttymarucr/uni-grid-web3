@@ -18,6 +18,7 @@
     "@uniswap/v3-sdk": "^3.25.2",
     "@wagmi/connectors": "^5.7.12",
     "@wagmi/core": "^2.16.7",
+    "@web3icons/react": "^4.0.13",
     "chart.js": "^4.4.8",
     "chartjs-plugin-annotation": "^3.1.0",
     "ethers": "^6.13.5",
