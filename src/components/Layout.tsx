@@ -8,11 +8,20 @@ import ChainSelector from "./ChainSelector";
 import { PowerIcon } from "@heroicons/react/24/outline";
 import Button from "./Button";
 import About from "../pages/About";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { address, isConnected } = useAppKitAccount();
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
+  const navigate = useNavigate();
+    const location = useLocation();
+
+  const handleSwitchChain = () => {
+    if (location.pathname !== "/") {
+      navigate("/");
+    }
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -31,7 +40,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   />
                   {`${address?.slice(0, 6)}...${address?.slice(-4)}`}
                 </div>
-                <ChainSelector />
+                <ChainSelector onSwitch={handleSwitchChain}/>
                 <Button
                   onClick={() => disconnect()}
                 >

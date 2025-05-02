@@ -22,12 +22,13 @@ import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { Token } from "@uniswap/sdk-core";
 import { useChainId } from "wagmi";
-import { ArrowPathIcon } from "@heroicons/react/24/outline";
-import { DeploymentConfig, GridDeployment, PoolInfo } from "../types";
 import {
-  priceToTick,
-  tickToPrice,
-} from "../utils/uniswapUtils";
+  ArrowPathIcon,
+  ArrowsRightLeftIcon,
+  ArrowUpRightIcon,
+} from "@heroicons/react/24/outline";
+import { DeploymentConfig, GridDeployment, PoolInfo } from "../types";
+import { priceToTick, tickToPrice } from "../utils/uniswapUtils";
 import Collapse from "../components/Collapse";
 import TokenSearchDropdown from "../components/TokenSearchDropdown";
 import Button from "../components/Button";
@@ -142,7 +143,6 @@ const GridManager = () => {
       );
       setOpenGrids(openGrids);
       setExitedGrids(exitedGrids);
-      toast("Grids fetched successfully.");
     } catch (error) {
       console.error(`Error fetching grids with multicall:`, error);
     }
@@ -218,7 +218,9 @@ const GridManager = () => {
           Number(priceUpper),
           tickSpacing
         ) * (displayInToken0 ? -1 : 1);
-      const tickRange = Math.floor(Math.abs(upperTick - lowerTick) / tickSpacing);
+      const tickRange = Math.floor(
+        Math.abs(upperTick - lowerTick) / tickSpacing
+      );
       const gridStep = Math.floor(tickRange / gridSize);
       if (gridStep < 1) {
         toast.error("Price range is too small for the grid size.");
@@ -235,9 +237,18 @@ const GridManager = () => {
           gridStep,
         ],
       });
+      toast(`Transaction Hash: ${hash}`);
+      const tx = await client.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+      });
+      if (tx && tx.status !== "success") {
+        toast.error("Transaction failed.");
+        return;
+      }
+      toast.success("Grid deployed successfully.");
       reset();
       refetch();
-      toast(`Transaction Hash: ${hash}`);
     } catch (error) {
       toast.error(`Error deploying grid: ${(error as Error).message}`);
       console.error(`Error deploying grid:`, error);
@@ -409,7 +420,7 @@ const GridManager = () => {
       setOpenGrids([]);
       setExitedGrids([]);
     }
-  }, [deploymentContracts.gridManager, refetch]);
+  }, [deploymentContracts.gridManager, refetch, chainId]);
 
   const upgradeTo = async () => {
     if (!newImplementation) {
@@ -484,24 +495,27 @@ const GridManager = () => {
             </div>
             <div>
               {selectedToken0 && selectedToken1 && (
-                <div>
-                  <span
-                    onClick={toggleDisplayToken}
-                    className="mr-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-md mb-4 hover:cursor-pointer"
-                  >
-                    Toggle Price
-                  </span>
+                <div className="flex flex-col justify-between">
                   {poolAddress && (
                     <a
-                    href={`https://app.uniswap.org/explore/pools/${deploymentContracts.uniswapChain}/${poolAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline mr-2"
-                  >
-                    View Pool
-                  </a>
+                      href={`https://app.uniswap.org/explore/pools/${deploymentContracts.uniswapChain}/${poolAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline mr-2 mb-2"
+                    >
+                      View Pool
+                      <ArrowUpRightIcon className="h-4 w-4 inline-block ml-1" />
+                    </a>
                   )}
-                  <span>Current Price: {currentPrice}</span>
+                  <div>
+                    <Button className="mb-2" onClick={toggleDisplayToken}>
+                      Toggle Price
+                      <ArrowsRightLeftIcon className="h-4 w-4 inline-block ml-1" />
+                    </Button>
+                  </div>
+                  <span className="font-mono">
+                    Current Price: {currentPrice}
+                  </span>
                 </div>
               )}
             </div>
@@ -537,10 +551,7 @@ const GridManager = () => {
                 ))}
               </div>
             </div>
-            <Button
-              type="submit"
-              disabled={!poolAddress}
-            >
+            <Button type="submit" disabled={!poolAddress}>
               Deploy Grid
             </Button>
           </form>
@@ -560,10 +571,7 @@ const GridManager = () => {
                     className="border p-2 rounded w-full"
                   />
                 </div>
-                <Button
-                  onClick={upgradeTo}
-                  className="bg-red-500"
-                >
+                <Button onClick={upgradeTo} className="bg-red-500">
                   Upgrade Contract
                 </Button>
               </div>
@@ -583,7 +591,11 @@ const GridManager = () => {
                         to={`/manage/${deployment.grid}`}
                         key={`${deployment.grid}`}
                       >
-                        <div className={`border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white ${deployment.isInRange ? "" : "border-red-900"}`}>
+                        <div
+                          className={`border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white ${
+                            deployment.isInRange ? "" : "border-red-900"
+                          }`}
+                        >
                           <p>
                             <strong>Pool:</strong> ({deployment.token0Symbol}/
                             {deployment.token1Symbol}){" "}
@@ -624,65 +636,61 @@ const GridManager = () => {
               </div>
             )}
             <div className="mt-4">
-              <Button
-                onClick={() => refetch()}
-              >
+              <Button onClick={() => refetch()}>
                 <ArrowPathIcon className="h-5 w-5" />
               </Button>
             </div>
           </Collapse>
           <Collapse title="Exited Grids">
             <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
-            {openGrids?.length ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {exitedGrids.map((deployment) => (
-                  <Link
-                    to={`/manage/${deployment.grid}`}
-                    key={`${deployment.grid}`}
-                  >
-                    <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white text-gray-500">
-                      <p>
-                        <strong>Pool:</strong> ({deployment.token0Symbol}/
-                        {deployment.token1Symbol}){" "}
-                        {(deployment.fee / 10000).toFixed(2)}%
-                      </p>
-                      <p>
-                        <strong>Liquidity:</strong>
-                      </p>
-                      <p>
-                        {formatUnits(
-                          deployment.token0Liquidity,
-                          deployment.token0Decimals
-                        )}{" "}
-                        {deployment.token0Symbol} /{" "}
-                        {formatUnits(
-                          deployment.token1Liquidity,
-                          deployment.token1Decimals
-                        )}{" "}
-                        {deployment.token1Symbol}
-                      </p>
-                      <p>
-                        <strong>Steps:</strong> {deployment.gridStep}
-                      </p>
-                      <p>
-                        <strong>Grids:</strong> {deployment.gridQuantity}
-                      </p>
-                      <p>
-                        <strong>InRange:</strong>{" "}
-                        {deployment.isInRange ? "Yes" : "No"}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-             ) : (
+              {exitedGrids?.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {exitedGrids.map((deployment) => (
+                    <Link
+                      to={`/manage/${deployment.grid}`}
+                      key={`${deployment.grid}`}
+                    >
+                      <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white text-gray-500">
+                        <p>
+                          <strong>Pool:</strong> ({deployment.token0Symbol}/
+                          {deployment.token1Symbol}){" "}
+                          {(deployment.fee / 10000).toFixed(2)}%
+                        </p>
+                        <p>
+                          <strong>Liquidity:</strong>
+                        </p>
+                        <p>
+                          {formatUnits(
+                            deployment.token0Liquidity,
+                            deployment.token0Decimals
+                          )}{" "}
+                          {deployment.token0Symbol} /{" "}
+                          {formatUnits(
+                            deployment.token1Liquidity,
+                            deployment.token1Decimals
+                          )}{" "}
+                          {deployment.token1Symbol}
+                        </p>
+                        <p>
+                          <strong>Steps:</strong> {deployment.gridStep}
+                        </p>
+                        <p>
+                          <strong>Grids:</strong> {deployment.gridQuantity}
+                        </p>
+                        <p>
+                          <strong>InRange:</strong>{" "}
+                          {deployment.isInRange ? "Yes" : "No"}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
                 <p>No grids found.</p>
               )}
             </div>
             <div className="mt-4">
-              <Button
-                onClick={() => refetch()}
-              >
+              <Button onClick={() => refetch()}>
                 <ArrowPathIcon className="h-5 w-5" />
               </Button>
             </div>

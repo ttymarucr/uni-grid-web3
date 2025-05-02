@@ -498,6 +498,15 @@ const ManagePositions: React.FC = () => {
         gas: eGas,
       });
       toast(`Transaction Hash: ${hash}`);
+      const tx = await client.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+      });
+      if (tx && tx.status !== "success") {
+        toast.error("Transaction failed.");
+        return;
+      }
+      toast.success(`Transaction ${functionName} executed successfully.`);
       fetchPositions();
       refetchHistory();
     } catch (error) {
@@ -635,11 +644,15 @@ const ManagePositions: React.FC = () => {
     decimals: number
   ) => {
     try {
-      await writeContract(config, {
+      const hash = await writeContract(config, {
         address: tokenAddress as `0x${string}`,
         abi: IERC20MetadataABI,
         functionName: "approve",
         args: [contractAddress, parseUnits(amount.toString(), decimals)],
+      });
+      await client.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
       });
       toast.success("Token approved successfully.");
     } catch (error) {
@@ -650,7 +663,7 @@ const ManagePositions: React.FC = () => {
 
   useEffect(() => {
     fetchPositions();
-  }, [isConnected, address, fetchPositions]);
+  }, [fetchPositions]);
 
   useEffect(() => {
     const fetchGridBalance = async () => {

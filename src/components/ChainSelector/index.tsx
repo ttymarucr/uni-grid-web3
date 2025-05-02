@@ -4,7 +4,11 @@ import { useChainId, useChains } from "wagmi";
 import { switchChain } from "@wagmi/core";
 import Button from "../Button";
 
-const ChainSelector = () => {
+interface ChainSelectorProps {
+  onSwitch?: (chainId: number) => void;
+}
+
+const ChainSelector: React.FC<ChainSelectorProps> = ({ onSwitch }) => {
   const chainId = useChainId({ config });
   const chains = useChains({ config });
 
@@ -13,6 +17,14 @@ const ChainSelector = () => {
   const handleBlur = (e: React.FocusEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget)) {
       setIsDropdownVisible(false);
+    }
+  };
+
+  const handleSwitchChain = (chainId: number) => {
+    switchChain(config, { chainId });
+    setIsDropdownVisible(false);
+    if (onSwitch) {
+      onSwitch(chainId);
     }
   };
 
@@ -30,8 +42,7 @@ const ChainSelector = () => {
             <button
               key={availableChain.id}
               onClick={() => {
-                switchChain(config, { chainId: availableChain.id });
-                setIsDropdownVisible(false);
+                handleSwitchChain(availableChain.id);
               }}
               className={`block px-4 py-2 text-left w-full hover:cursor-pointer ${
                 chainId === availableChain.id ? "bg-gray-200" : "bg-white"

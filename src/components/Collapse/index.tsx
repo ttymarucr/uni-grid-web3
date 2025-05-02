@@ -8,7 +8,13 @@ interface CollapseProps {
   children: React.ReactNode;
 }
 
-const Collapse: React.FC<CollapseProps> = ({ title, open=false, collapsible=true, onClick, children }) => {
+const Collapse: React.FC<CollapseProps> = ({
+  title,
+  open = false,
+  collapsible = true,
+  onClick,
+  children,
+}) => {
   const [isOpen, setIsOpen] = useState(open);
 
   const toggleCollapse = () => {
@@ -32,7 +38,7 @@ const Collapse: React.FC<CollapseProps> = ({ title, open=false, collapsible=true
             isOpen ? "rotate-180" : "rotate-0"
           }`}
         >
-          {collapsible ? "▼" : ""}
+          {collapsible ? <span className="mr-2 ml-2">▼</span> : ""}
         </span>
       </button>
       <div className="w-full h-2 green-card" />
@@ -41,7 +47,7 @@ const Collapse: React.FC<CollapseProps> = ({ title, open=false, collapsible=true
           isOpen ? "max-h-screen md:max-h-full" : "max-h-0"
         }`}
       >
-        <div className="p-4">{children}</div>
+        <div className="p-4 bg-brown-900">{children}</div>
       </div>
     </div>
   );

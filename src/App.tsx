@@ -5,13 +5,12 @@ import Layout from "./components/Layout";
 import GridManager from "./pages/GridManager";
 import { SubGraphProvider } from "./components/SubGraphProvider";
 
-
 function App() {
   return (
     <AppKitProvider>
       <SubGraphProvider>
-        <Layout>
-          <Router basename="/uni-grid-web3/">
+        <Router basename="/uni-grid-web3/">
+          <Layout>
             <Routes>
               <Route
                 path="/manage/:contractAddress"
@@ -19,8 +18,8 @@ function App() {
               />
               <Route path="/" element={<GridManager />} />
             </Routes>
-          </Router>
-        </Layout>
+          </Layout>
+        </Router>
       </SubGraphProvider>
     </AppKitProvider>
   );
