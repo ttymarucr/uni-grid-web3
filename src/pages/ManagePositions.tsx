@@ -828,7 +828,7 @@ const ManagePositions: React.FC = () => {
   );
 
   return (
-    <div className="md:m-10 m-2">
+    <div className="m-2 md:m-10">
       <div className="grid md:grid-flow-col grid-flow-row justify-items-stretch md:gap-4 gap-0 md:text-lg text-sm font-semibold">
         <div
           className="green-card rounded flex justify-center items-center mb-4 px-4 py-2 hover:cursor-pointer"

@@ -34,7 +34,7 @@ h1 {
 
 .green-card {
   background-color: rgba(75, 192, 192, 0.6);
-  border-color: rgba(75, 192, 192, 0.6);
+  border-color: rgba(0, 0, 0, 0);
   border-width: 1;
 }
 

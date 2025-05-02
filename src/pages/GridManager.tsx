@@ -445,7 +445,7 @@ const GridManager = () => {
   };
 
   return (
-    <div className="m-10">
+    <div className="m-2 md:m-10">
       <div className="w-full grid grid-cols-1 md:grid-cols-3 md:gap-10 gap-0">
         <Collapse title="Deploy Grid" open={true} collapsible={false}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

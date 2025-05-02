@@ -15,7 +15,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const navigate = useNavigate();
-    const location = useLocation();
+  const location = useLocation();
 
   const handleSwitchChain = () => {
     if (location.pathname !== "/") {
@@ -25,12 +25,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="container mx-auto p-4">
-      <header>
+      <header className="flex items-center justify-center">
+        <img
+          src={"/uni-grid-web3/logo.svg"}
+          className="flex float-left h-10 md:h-30 pr-0 md:pr-4"
+        />
         <div className="flex flex-col items-center md:justify-between">
-        <h1>
-          Grid Liquidity Management
-        </h1>
-        <div>
+          <h1 className="hidden md:block">Grid Liquidity Management</h1>
+          <div>
             {isConnected ? (
               <div className="flex items-center md:justify-start justify-between w-full">
                 <div className="m-2 pr-2 h-10 green-card rounded flex items-center text-sm md:text-base">
@@ -40,10 +42,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   />
                   {`${address?.slice(0, 6)}...${address?.slice(-4)}`}
                 </div>
-                <ChainSelector onSwitch={handleSwitchChain}/>
-                <Button
-                  onClick={() => disconnect()}
-                >
+                <ChainSelector onSwitch={handleSwitchChain} />
+                <Button onClick={() => disconnect()}>
                   <PowerIcon className="h-5 w-5" />
                 </Button>
               </div>
@@ -57,9 +57,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               </div>
             )}
           </div>
-          </div>
+        </div>
       </header>
-      {isConnected ? (<main>{children}</main>) : (<About />)}
+      {isConnected ? <main>{children}</main> : <About />}
     </div>
   );
 };
