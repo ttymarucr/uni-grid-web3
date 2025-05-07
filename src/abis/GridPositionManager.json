@@ -152,6 +152,11 @@
         },
         {
           "internalType": "uint256",
+          "name": "slippage",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
           "name": "token0Amount",
           "type": "uint256"
         },

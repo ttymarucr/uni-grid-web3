@@ -75,8 +75,8 @@ const GridManager = () => {
   const logsQuery = useCallback(async () => {
     if (!isConnected || !deploymentContracts.gridManager) return [];
     const block = await getBlock(config, {
-      chainId:chainId, 
-    })
+      chainId: chainId,
+    });
     const logs = await getLogs(client, {
       address: deploymentContracts.gridManager,
       event: parseAbiItem(
@@ -87,9 +87,13 @@ const GridManager = () => {
       },
       fromBlock: 0n,
     });
-    return logs.map(({ args, blockNumber }) => ({ ...args, blockNumber, isNew: block.number - blockNumber < 1000n })).sort(
-      (a, b) => Number(b.blockNumber) - Number(a.blockNumber)
-    );
+    return logs
+      .map(({ args, blockNumber }) => ({
+        ...args,
+        blockNumber,
+        isNew: block.number - blockNumber < 1000n,
+      }))
+      .sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
   }, [address, chainId, client, deploymentContracts.gridManager, isConnected]);
 
   const {
@@ -137,7 +141,7 @@ const GridManager = () => {
           ...(c.status === "success"
             ? { isInRange: c.result as boolean }
             : { isInRange: false }),
-            isNew: deployment.isNew,
+          isNew: deployment.isNew,
         } as unknown as GridDeployment;
       });
       const deployments = await Promise.all(deploymentPromises);
@@ -664,7 +668,16 @@ const GridManager = () => {
                       key={`${deployment.grid}`}
                     >
                       <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white text-gray-500">
-                        <p className={`${deployment.isNew?"block flex float-right text-yellow-500":"hidden"}`}><MegaphoneIcon className="h-5 w-5 mr-2" />New!</p>
+                        <p
+                          className={`${
+                            deployment.isNew
+                              ? "block flex float-right text-yellow-500"
+                              : "hidden"
+                          }`}
+                        >
+                          <MegaphoneIcon className="h-5 w-5 mr-2" />
+                          New!
+                        </p>
                         <p>
                           <strong>Pool:</strong> ({deployment.token0Symbol}/
                           {deployment.token1Symbol}){" "}

@@ -73,7 +73,7 @@ ChartJS.register(
  * @returns A JSX element with the formatted value.
  */
 function formatValue(value: number, decimals: number = 18): JSX.Element {
-  const valueStr = value > 1 ? value.toFixed(4) : value.toFixed(decimals); // Convert the number to a string
+  const valueStr = value >= 1 ? value.toFixed(4) : value.toFixed(decimals); // Convert the number to a string
   const parts = valueStr.split("."); // Split into integer and fractional parts
 
   if (parts.length < 2) {
@@ -82,8 +82,8 @@ function formatValue(value: number, decimals: number = 18): JSX.Element {
 
   const fractionalPart = parts[1];
   const leadingZeros = fractionalPart.match(/^0+/)?.[0]?.length || 0; // Count leading zeros
-  if (4 > leadingZeros) {
-    return <span>{valueStr}</span>; // Less than 3 leading zeros, return as is
+  if (4 >= leadingZeros) {
+    return <span>{valueStr}</span>; // Less than 4 leading zeros, return as is
   } else if (leadingZeros === decimals) {
     return <span>0</span>;
   }
@@ -160,6 +160,7 @@ const ManagePositions: React.FC = () => {
     register: registerAddLiquidityToPosition,
     handleSubmit: handleSubmitAddLiquidityToPosition,
     reset: resetAddLiquidityToPosition,
+    getValues: getValuesAddLiquidityToPosition,
   } = useForm();
 
   const [displayInToken0, setDisplayInToken0] = useState(false);
@@ -422,7 +423,7 @@ const ManagePositions: React.FC = () => {
     () =>
       positions.findIndex(
         (position) =>
-          position.tickLower <= pool.tick && position.tickUpper >= pool.tick
+          position.tickLower <= pool.tick && position.tickUpper > pool.tick
       ),
     [pool, positions]
   );
@@ -685,11 +686,19 @@ const ManagePositions: React.FC = () => {
       toast.error("Slippage cannot exceed 500 basis points (max 5%)");
       return;
     }
+    const position = positions.find(
+      (position) => position.tokenId === BigInt(tokenId)
+    );
+    if (!position) {
+      toast.error("Position not found.");
+      return;
+    }
+
     await handleContractAction("addLiquidityToPosition", [
       tokenId,
+      slippage * 100,
       parseUnits(token0Amount.toString(), pool.token0.decimals),
       parseUnits(token1Amount.toString(), pool.token1.decimals),
-      slippage * 100,
     ]);
     resetAddLiquidityToPosition();
   };
@@ -882,7 +891,8 @@ const ManagePositions: React.FC = () => {
           {displayInToken0 ? pool.token0.symbol : pool.token1.symbol}
         </div>
         <div className="green-card rounded flex justify-center items-center mb-4 px-4 py-2">
-          Total Fees {totalFees()}
+          Total Fees {totalFees()}{" "}
+          {displayInToken0 ? pool.token0.symbol : pool.token1.symbol}
         </div>
       </div>
       <div className="mb-4">
@@ -1013,7 +1023,7 @@ const ManagePositions: React.FC = () => {
                   buttonStyle="primary"
                   type="Button"
                   onClick={() => {
-                    const { token0Amount } = getValuesDeposit();
+                    const token0Amount = getValuesDeposit("token0Amount");
                     handleTokenApprove(
                       pool.token0.address || "0x00",
                       token0Amount,
@@ -1065,7 +1075,7 @@ const ManagePositions: React.FC = () => {
                   buttonStyle="primary"
                   type="Button"
                   onClick={() => {
-                    const { token1Amount } = getValuesDeposit();
+                    const token1Amount = getValuesDeposit("token1Amount");
                     handleTokenApprove(
                       pool.token1.address || "0x00",
                       token1Amount,
@@ -1286,7 +1296,7 @@ const ManagePositions: React.FC = () => {
                     pool.token1.address,
                     address
                   );
-                  resetDeposit({
+                  resetAddLiquidityToPosition({
                     token0Amount: formatUnits(
                       token0Balance,
                       pool.token0.decimals
@@ -1296,6 +1306,7 @@ const ManagePositions: React.FC = () => {
                       pool.token1.decimals
                     ),
                     slippage: 0.1,
+                    tokenId: getValuesAddLiquidityToPosition("tokenId"),
                   });
                 }}
               >
@@ -1305,7 +1316,8 @@ const ManagePositions: React.FC = () => {
                 buttonStyle="primary"
                 type="Button"
                 onClick={() => {
-                  const { token0Amount } = getValuesDeposit();
+                  const token0Amount =
+                    getValuesAddLiquidityToPosition("token0Amount");
                   handleTokenApprove(
                     pool.token0.address || "0x00",
                     token0Amount,
@@ -1338,7 +1350,7 @@ const ManagePositions: React.FC = () => {
                     pool.token1.address,
                     address
                   );
-                  resetDeposit({
+                  resetAddLiquidityToPosition({
                     token0Amount: formatUnits(
                       token0Balance,
                       pool.token0.decimals
@@ -1348,6 +1360,7 @@ const ManagePositions: React.FC = () => {
                       pool.token1.decimals
                     ),
                     slippage: 0.1,
+                    tokenId: getValuesAddLiquidityToPosition("tokenId"),
                   });
                 }}
               >
@@ -1357,7 +1370,8 @@ const ManagePositions: React.FC = () => {
                 buttonStyle="primary"
                 type="Button"
                 onClick={() => {
-                  const { token1Amount } = getValuesDeposit();
+                  const token1Amount =
+                    getValuesAddLiquidityToPosition("token1Amount");
                   handleTokenApprove(
                     pool.token1.address || "0x00",
                     token1Amount,
@@ -1437,8 +1451,7 @@ const ManagePositions: React.FC = () => {
           const isHighlighted =
             pool &&
             position.tickLower <= pool.tick &&
-            position.tickUpper >= pool.tick;
-
+            position.tickUpper > pool.tick;
           return (
             <div
               key={index}
