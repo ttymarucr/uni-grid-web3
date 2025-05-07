@@ -52,6 +52,8 @@ export interface GridDeployment extends PoolInfo {
   token0Liquidity: bigint; // Liquidity for token0
   token1Liquidity: bigint; // Liquidity for token1
   isInRange: boolean; // Whether the grid is in range
+  isNew: boolean; // Whether the grid is new
+  blockNumber: bigint; // Block number of the grid deployment
 }
 
 export interface GridState {

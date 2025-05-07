@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getLogs } from "viem/actions";
 import { config, deploymentConfigMap } from "../config";
 import {
+  getBlock,
   getPublicClient,
   multicall,
   readContract,
@@ -26,6 +27,7 @@ import {
   ArrowPathIcon,
   ArrowsRightLeftIcon,
   ArrowUpRightIcon,
+  MegaphoneIcon,
 } from "@heroicons/react/24/outline";
 import { DeploymentConfig, GridDeployment, PoolInfo } from "../types";
 import { priceToTick, tickToPrice } from "../utils/uniswapUtils";
@@ -72,6 +74,9 @@ const GridManager = () => {
 
   const logsQuery = useCallback(async () => {
     if (!isConnected || !deploymentContracts.gridManager) return [];
+    const block = await getBlock(config, {
+      chainId:chainId, 
+    })
     const logs = await getLogs(client, {
       address: deploymentContracts.gridManager,
       event: parseAbiItem(
@@ -82,8 +87,10 @@ const GridManager = () => {
       },
       fromBlock: 0n,
     });
-    return logs.map(({ args }) => ({ ...args }));
-  }, [address, client, deploymentContracts.gridManager, isConnected]);
+    return logs.map(({ args, blockNumber }) => ({ ...args, blockNumber, isNew: block.number - blockNumber < 1000n })).sort(
+      (a, b) => Number(b.blockNumber) - Number(a.blockNumber)
+    );
+  }, [address, chainId, client, deploymentContracts.gridManager, isConnected]);
 
   const {
     data: gridDeploymentLogs,
@@ -130,6 +137,7 @@ const GridManager = () => {
           ...(c.status === "success"
             ? { isInRange: c.result as boolean }
             : { isInRange: false }),
+            isNew: deployment.isNew,
         } as unknown as GridDeployment;
       });
       const deployments = await Promise.all(deploymentPromises);
@@ -436,8 +444,13 @@ const GridManager = () => {
         args: [newImplementation],
         account: address,
       });
-
-      toast.success(`Upgrade successful. Transaction Hash: ${hash}`);
+      toast(`Transaction Hash: ${hash}`);
+      await client.waitForTransactionReceipt({
+        hash,
+        confirmations: 1,
+      });
+      toast.success("Upgrade successful.");
+      setNewImplementation("");
     } catch (error) {
       toast.error(`Error upgrading contract: ${(error as Error).message}`);
       console.error("Error upgrading contract:", error);
@@ -644,13 +657,14 @@ const GridManager = () => {
           <Collapse title="Exited Grids" open={true}>
             <div className="sm:max-h-full md:max-h-6/10 overflow-y-auto">
               {exitedGrids?.length ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
                   {exitedGrids.map((deployment) => (
                     <Link
                       to={`/manage/${deployment.grid}`}
                       key={`${deployment.grid}`}
                     >
                       <div className="border p-4 rounded shadow hover:shadow-lg transition hover:green-card hover:text-white text-gray-500">
+                        <p className={`${deployment.isNew?"block flex float-right text-yellow-500":"hidden"}`}><MegaphoneIcon className="h-5 w-5 mr-2" />New!</p>
                         <p>
                           <strong>Pool:</strong> ({deployment.token0Symbol}/
                           {deployment.token1Symbol}){" "}
