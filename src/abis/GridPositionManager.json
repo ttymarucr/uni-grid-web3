@@ -47,7 +47,7 @@
           "type": "uint256"
         }
       ],
-      "name": "Deposit",
+      "name": "GridDeposit",
       "type": "event"
     },
     {
@@ -144,8 +144,24 @@
       "type": "fallback"
     },
     {
-      "inputs": [],
-      "name": "close",
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "token0Amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "token1Amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "addLiquidityToPosition",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -244,11 +260,6 @@
               "internalType": "uint128",
               "name": "liquidity",
               "type": "uint128"
-            },
-            {
-              "internalType": "uint256",
-              "name": "index",
-              "type": "uint256"
             }
           ],
           "internalType": "struct IGridPositionManager.Position[]",
@@ -387,7 +398,7 @@
       "inputs": [
         {
           "internalType": "uint256",
-          "name": "index",
+          "name": "tokenId",
           "type": "uint256"
         }
       ],
@@ -414,11 +425,6 @@
               "internalType": "uint128",
               "name": "liquidity",
               "type": "uint128"
-            },
-            {
-              "internalType": "uint256",
-              "name": "index",
-              "type": "uint256"
             }
           ],
           "internalType": "struct IGridPositionManager.Position",

@@ -76,11 +76,11 @@ const About = () => {
       <h2 className="text-2xl font-semibold mb-2">Learn More</h2>
       <p>
         For more details, check out our{" "}
-        <a href="/README.md" className="text-blue-500 underline">
+        <a href="https://github.com/ttymarucr/uni-grid-contracts/blob/master/README.md" className="text-blue-500 underline">
           README
         </a>{" "}
         or visit the{" "}
-        <a href="/CONTRIBUTING.md" className="text-blue-500 underline">
+        <a href="https://github.com/ttymarucr/uni-grid-contracts/blob/master/CONTRIBUTING.md" className="text-blue-500 underline">
           Contributing Guide
         </a>{" "}
         to learn how you can help improve UniGrid.

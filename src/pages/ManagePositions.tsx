@@ -22,7 +22,14 @@ import annotationPlugin from "chartjs-plugin-annotation";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { formatUnits, parseUnits, maxUint128, parseAbi, BaseError, ContractFunctionRevertedError } from "viem";
+import {
+  formatUnits,
+  parseUnits,
+  maxUint128,
+  parseAbi,
+  BaseError,
+  ContractFunctionRevertedError,
+} from "viem";
 import { useChainId } from "wagmi";
 import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
 import {
@@ -148,6 +155,11 @@ const ManagePositions: React.FC = () => {
     register: registerGridStep,
     handleSubmit: handleSubmitGridStep,
     reset: resetGridStep,
+  } = useForm();
+  const {
+    register: registerAddLiquidityToPosition,
+    handleSubmit: handleSubmitAddLiquidityToPosition,
+    reset: resetAddLiquidityToPosition,
   } = useForm();
 
   const [displayInToken0, setDisplayInToken0] = useState(false);
@@ -467,7 +479,6 @@ const ManagePositions: React.FC = () => {
   const handleContractAction = async (
     functionName:
       | "deposit"
-      | "close"
       | "compound"
       | "recoverEther"
       | "renounceOwnership"
@@ -477,7 +488,8 @@ const ManagePositions: React.FC = () => {
       | "sweep"
       | "transferOwnership"
       | "withdraw"
-      | "withdrawAvailable",
+      | "withdrawAvailable"
+      | "addLiquidityToPosition",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[] = []
   ) => {
@@ -642,10 +654,6 @@ const ManagePositions: React.FC = () => {
     resetSweep();
   };
 
-  const handleClose = async () => {
-    await handleContractAction("close");
-  };
-
   const handleSetMinFees = async (
     token0MinFees: number,
     token1MinFees: number
@@ -665,6 +673,25 @@ const ManagePositions: React.FC = () => {
   const handleSetGridStep = async (gridStep: bigint) => {
     await handleContractAction("setGridStep", [gridStep]);
     resetGridStep();
+  };
+
+  const handleAddLiquidityToPosition = async (
+    token0Amount: number,
+    token1Amount: number,
+    slippage: number,
+    tokenId: number
+  ) => {
+    if (Number(slippage) > 5) {
+      toast.error("Slippage cannot exceed 500 basis points (max 5%)");
+      return;
+    }
+    await handleContractAction("addLiquidityToPosition", [
+      tokenId,
+      parseUnits(token0Amount.toString(), pool.token0.decimals),
+      parseUnits(token1Amount.toString(), pool.token1.decimals),
+      slippage * 100,
+    ]);
+    resetAddLiquidityToPosition();
   };
 
   const handleTokenApprove = async (
@@ -938,6 +965,13 @@ const ManagePositions: React.FC = () => {
               </p>
             </div>
             <div className=" flex flex-col justify-between">
+              <input
+                {...registerDeposit("slippage")}
+                type="number"
+                placeholder="Slippage (max 5%)"
+                step={0.01}
+                className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
               <div className="flex items-center mb-2">
                 <input
                   {...registerDeposit("token0Amount")}
@@ -1042,13 +1076,6 @@ const ManagePositions: React.FC = () => {
                   Approve
                 </Button>
               </div>
-              <input
-                {...registerDeposit("slippage")}
-                type="number"
-                placeholder="Slippage (max 5%)"
-                step={0.01}
-                className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
               <div className="mb-4">
                 <label className="block font-semibold mb-2">Position</label>
                 <GridType
@@ -1185,18 +1212,164 @@ const ManagePositions: React.FC = () => {
           </form>
 
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleClose();
-            }}
+            onSubmit={handleSubmitGridQuantity((data) => {
+              handleSetGridQuantity(BigInt(data.gridQuantity));
+            })}
             className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
           >
-            <h3 className="font-semibold text-lg mb-2">Close</h3>
+            <h3 className="font-semibold text-lg mb-2">Set Grid Quantity</h3>
             <p className="text-sm font-bold text-gray-900/60 mb-4">
-              Close all active positions in the grid.
+              Adjust the total number of grid positions for liquidity
+              management.
             </p>
+            <input
+              {...registerGridQuantity("gridQuantity")}
+              type="number"
+              placeholder="Grid Quantity"
+              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
             <Button buttonStyle="primary" type="submit">
-              Close
+              Set Grid Quantity
+            </Button>
+          </form>
+
+          <form
+            onSubmit={handleSubmitAddLiquidityToPosition((data) => {
+              handleAddLiquidityToPosition(
+                Number(data.token0Amount.toString()),
+                Number(data.token1Amount.toString()),
+                Number(data.slippage),
+                Number(data.tokenId)
+              );
+            })}
+            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
+          >
+            <h3 className="font-semibold text-lg mb-2">
+              Add Liquidity to Position
+            </h3>
+            <p className="text-sm font-bold text-gray-900/60 mb-4">
+              Add liquidity to an existing position by specifying token amounts
+              and slippage.
+            </p>
+            <input
+              {...registerAddLiquidityToPosition("tokenId")}
+              type="number"
+              placeholder="Token ID"
+              className="w-full border border-gray-300 rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <input
+              {...registerAddLiquidityToPosition("slippage")}
+              type="number"
+              placeholder="Slippage (max 5%)"
+              step={0.01}
+              className="w-full border border-gray-300 rounded-md p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <div className="flex items-center mb-2">
+              <input
+                {...registerAddLiquidityToPosition("token0Amount")}
+                type="number"
+                min={0}
+                step={1 / 10 ** (pool.token0.decimals || 18)}
+                placeholder={`${pool.token0.symbol} Amount`}
+                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <Button
+                buttonStyle="primary"
+                className="m-2"
+                type="Button"
+                onClick={async () => {
+                  const token0Balance = await fetchTokenBalance(
+                    pool.token0.address,
+                    address
+                  );
+                  const token1Balance = await fetchTokenBalance(
+                    pool.token1.address,
+                    address
+                  );
+                  resetDeposit({
+                    token0Amount: formatUnits(
+                      token0Balance,
+                      pool.token0.decimals
+                    ),
+                    token1Amount: formatUnits(
+                      token1Balance,
+                      pool.token1.decimals
+                    ),
+                    slippage: 0.1,
+                  });
+                }}
+              >
+                Max
+              </Button>
+              <Button
+                buttonStyle="primary"
+                type="Button"
+                onClick={() => {
+                  const { token0Amount } = getValuesDeposit();
+                  handleTokenApprove(
+                    pool.token0.address || "0x00",
+                    token0Amount,
+                    pool.token0.decimals
+                  );
+                }}
+              >
+                Approve
+              </Button>
+            </div>
+            <div className="flex items-center mb-2">
+              <input
+                {...registerAddLiquidityToPosition("token1Amount")}
+                type="number"
+                min={0}
+                step={1 / 10 ** (pool.token1.decimals || 18)}
+                placeholder={`${pool.token1.symbol} Amount`}
+                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <Button
+                buttonStyle="primary"
+                className="m-2"
+                type="Button"
+                onClick={async () => {
+                  const token0Balance = await fetchTokenBalance(
+                    pool.token0.address,
+                    address
+                  );
+                  const token1Balance = await fetchTokenBalance(
+                    pool.token1.address,
+                    address
+                  );
+                  resetDeposit({
+                    token0Amount: formatUnits(
+                      token0Balance,
+                      pool.token0.decimals
+                    ),
+                    token1Amount: formatUnits(
+                      token1Balance,
+                      pool.token1.decimals
+                    ),
+                    slippage: 0.1,
+                  });
+                }}
+              >
+                Max
+              </Button>
+              <Button
+                buttonStyle="primary"
+                type="Button"
+                onClick={() => {
+                  const { token1Amount } = getValuesDeposit();
+                  handleTokenApprove(
+                    pool.token1.address || "0x00",
+                    token1Amount,
+                    pool.token1.decimals
+                  );
+                }}
+              >
+                Approve
+              </Button>
+            </div>
+            <Button buttonStyle="primary" type="submit">
+              Add Liquidity
             </Button>
           </form>
 
@@ -1227,28 +1400,6 @@ const ManagePositions: React.FC = () => {
             />
             <Button buttonStyle="primary" type="submit">
               Set Minimum Fees
-            </Button>
-          </form>
-
-          <form
-            onSubmit={handleSubmitGridQuantity((data) => {
-              handleSetGridQuantity(BigInt(data.gridQuantity));
-            })}
-            className="green-card rounded-lg shadow-md p-4 flex flex-col justify-between"
-          >
-            <h3 className="font-semibold text-lg mb-2">Set Grid Quantity</h3>
-            <p className="text-sm font-bold text-gray-900/60 mb-4">
-              Adjust the total number of grid positions for liquidity
-              management.
-            </p>
-            <input
-              {...registerGridQuantity("gridQuantity")}
-              type="number"
-              placeholder="Grid Quantity"
-              className="w-full border border-gray-300 rounded-md p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <Button buttonStyle="primary" type="submit">
-              Set Grid Quantity
             </Button>
           </form>
 
