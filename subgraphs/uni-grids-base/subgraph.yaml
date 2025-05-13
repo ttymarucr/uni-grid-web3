@@ -1,0 +1,32 @@
+specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: GridManager
+    network: base
+    source:
+      address: "0x134FBc6CC346cF2c8b29487A5880328112023704"
+      abi: GridManager
+      startBlock: 28637058
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - GridDeployed
+        - OwnershipTransferred
+        - Upgraded
+      abis:
+        - name: GridManager
+          file: ./abis/GridManager.json
+      eventHandlers:
+        - event: GridDeployed(indexed address,indexed address,address)
+          handler: handleGridDeployed
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: Upgraded(indexed address)
+          handler: handleUpgraded
+      file: ./src/grid-manager.ts

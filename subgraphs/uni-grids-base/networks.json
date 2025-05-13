@@ -1,0 +1,8 @@
+{
+  "base": {
+    "GridManager": {
+      "address": "0x134FBc6CC346cF2c8b29487A5880328112023704",
+      "startBlock": 28637058
+    }
+  }
+}
