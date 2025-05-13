@@ -85,7 +85,6 @@ const GridManager = () => {
       args: {
         owner: address,
       },
-      fromBlock: 0n,
     });
     return logs
       .map(({ args, blockNumber }) => ({

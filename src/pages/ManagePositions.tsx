@@ -7,6 +7,7 @@ import {
   readContract,
   estimateGas,
   getPublicClient,
+  getBlock,
 } from "@wagmi/core";
 import { ToastContainer, toast } from "react-toastify";
 import {
@@ -173,6 +174,9 @@ const ManagePositions: React.FC = () => {
   const historyQuery = useCallback(async () => {
     if (contractAddress) {
       try {
+        const block = await getBlock(config, {
+          chainId: chainId,
+        });
         const logs = await getLogs(client, {
           address: contractAddress as `0x${string}`,
           events: parseAbi([
@@ -180,7 +184,7 @@ const ManagePositions: React.FC = () => {
             "event Withdraw(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
             "event Compound(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
           ]),
-          fromBlock: 0n, // From block 0
+          fromBlock: BigInt(block.number) - 500n,
         });
 
         const groupedLogs = logs.reduce((acc, log) => {
@@ -222,7 +226,7 @@ const ManagePositions: React.FC = () => {
         console.error("Error fetching history:", error);
       }
     }
-  }, [client, contractAddress]);
+  }, [chainId, client, contractAddress]);
 
   const {
     data: history,
@@ -1531,43 +1535,49 @@ const ManagePositions: React.FC = () => {
           );
         })}
       </div>
-      <Collapse title="History" onClick={refetchHistory}>
-        <div className="grid grid-cols-5 gap-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
-          <div>Event</div>
-          <div className="hidden md:inline-block">Sender</div>
-          <div>{pool.token0.symbol}</div>
-          <div>{pool.token1.symbol}</div>
-          <div>Date</div>
-        </div>
-        {isHistoryLoading ? (
-          <p className="flex justify-center items-center h-32">Loading...</p>
-        ) : (
-          history?.map((entry, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-5 gap-4 border-b border-gray-200 py-2"
-            >
-              <div className="truncate">{entry.event}</div>
-              <div className="hidden md:inline-block truncate">
-                {entry.owner}
+      {history && history.length > 0 && (
+        <Collapse title="History" onClick={refetchHistory}>
+          <div className="grid grid-cols-5 gap-4 font-bold border-b-2 border-gray-300 pb-2 mb-2">
+            <div>Event</div>
+            <div className="hidden md:inline-block">Sender</div>
+            <div>{pool.token0.symbol}</div>
+            <div>{pool.token1.symbol}</div>
+            <div>Date</div>
+          </div>
+          {isHistoryLoading ? (
+            <p className="flex justify-center items-center h-32">Loading...</p>
+          ) : (
+            history?.map((entry, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-5 gap-4 border-b border-gray-200 py-2"
+              >
+                <div className="truncate">{entry.event}</div>
+                <div className="hidden md:inline-block truncate">
+                  {entry.owner}
+                </div>
+                <div className="truncate">
+                  {formatValue(
+                    Number(
+                      formatUnits(entry.token0Amount, pool.token0.decimals)
+                    ),
+                    pool.token0.decimals
+                  )}
+                </div>
+                <div className="truncate">
+                  {formatValue(
+                    Number(
+                      formatUnits(entry.token1Amount, pool.token1.decimals)
+                    ),
+                    pool.token1.decimals
+                  )}
+                </div>
+                <div>{entry.timestamp}</div>
               </div>
-              <div className="truncate">
-                {formatValue(
-                  Number(formatUnits(entry.token0Amount, pool.token0.decimals)),
-                  pool.token0.decimals
-                )}
-              </div>
-              <div className="truncate">
-                {formatValue(
-                  Number(formatUnits(entry.token1Amount, pool.token1.decimals)),
-                  pool.token1.decimals
-                )}
-              </div>
-              <div>{entry.timestamp}</div>
-            </div>
-          ))
-        )}
-      </Collapse>
+            ))
+          )}
+        </Collapse>
+      )}
       <ToastContainer />
     </div>
   );

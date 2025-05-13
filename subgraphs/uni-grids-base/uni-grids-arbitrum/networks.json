@@ -1,0 +1,8 @@
+{
+  "arbitrum-one": {
+    "GridManager": {
+      "address": "0x5310F46C2854d8D79bE127e03Af4fB5aa2e2852d",
+      "startBlock": 329141385
+    }
+  }
+}
