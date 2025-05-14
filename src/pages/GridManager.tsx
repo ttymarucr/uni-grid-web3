@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   GridManagerABI,
   GridPositionManagerABI,
@@ -29,11 +29,23 @@ import {
   ArrowUpRightIcon,
   MegaphoneIcon,
 } from "@heroicons/react/24/outline";
+import { gql, useQuery as useQLQuery } from "urql";
 import { DeploymentConfig, GridDeployment, PoolInfo } from "../types";
 import { priceToTick, tickToPrice } from "../utils/uniswapUtils";
 import Collapse from "../components/Collapse";
 import TokenSearchDropdown from "../components/TokenSearchDropdown";
 import Button from "../components/Button";
+
+const QUERY = gql`
+  query Grids($owner: String!) {
+    gridDeployeds(where: { owner: $owner }) {
+      gridPositionManager
+      pool
+      blockNumber
+      blockTimestamp
+    }
+  }
+`;
 
 const UNISWAP_FEE_TIERS = [100, 500, 3000, 10000]; // Example fee tiers (0.01%, 0.05%, 0.3%)
 
@@ -72,12 +84,31 @@ const GridManager = () => {
     },
   });
 
+  const [queryResult, reexecuteQuery] = useQLQuery({
+    query: QUERY,
+    pause: !address,
+    variables: { owner: address },
+    context: useMemo(() => {
+      return {
+        url: `https://gateway.thegraph.com/api/subgraphs/id/${deploymentContracts.gridManagerSubgraphId}`,
+      };
+    }, [deploymentContracts.gridManagerSubgraphId]),
+  });
+
   const logsQuery = useCallback(async () => {
     if (!isConnected || !deploymentContracts.gridManager) return [];
     const block = await getBlock(config, {
       chainId: chainId,
     });
-    const logs = await getLogs(client, {
+    const qlLogs = queryResult.data?.gridDeployeds?.map(
+      ({ blockNumber, blockTimestamp, ...args }) => ({
+        args,
+        blockNumber,
+        blockTimestamp,
+      })
+    ) || [];
+    // since the subgraph is not always up to date, we need to fetch the logs from the blockchain
+    const blLogs = await getLogs(client, {
       address: deploymentContracts.gridManager,
       event: parseAbiItem(
         "event GridDeployed(address indexed owner, address indexed gridPositionManager, address pool)"
@@ -86,21 +117,26 @@ const GridManager = () => {
         owner: address,
       },
     });
-    return logs
-      .map(({ args, blockNumber }) => ({
-        ...args,
-        blockNumber,
-        isNew: block.number - blockNumber < 1000n,
+    const uniqueLogs = [
+      ...new Map(
+      [...blLogs, ...qlLogs].map((log) => [log.args.gridPositionManager, log])
+      ).values(),
+    ];
+    return uniqueLogs
+      .map(({ args, blockNumber, blockTimestamp }) => ({
+      ...args,
+      blockNumber,
+      blockTimestamp: blockTimestamp || block.timestamp,
       }))
       .sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
-  }, [address, chainId, client, deploymentContracts.gridManager, isConnected]);
+  }, [address, chainId, client, deploymentContracts.gridManager, isConnected, queryResult.data?.gridDeployeds]);
 
   const {
     data: gridDeploymentLogs,
     isLoading: isLogsLoading,
     refetch,
   } = useQuery({
-    queryKey: ["logs", isConnected, address],
+    queryKey: ["logs", isConnected, address, queryResult.data?.gridDeployeds],
     queryFn: logsQuery,
   });
 
@@ -140,7 +176,7 @@ const GridManager = () => {
           ...(c.status === "success"
             ? { isInRange: c.result as boolean }
             : { isInRange: false }),
-          isNew: deployment.isNew,
+          isNew: deployment.blockTimestamp > Date.now() / 1000 - 86400,
         } as unknown as GridDeployment;
       });
       const deployments = await Promise.all(deploymentPromises);
@@ -428,10 +464,11 @@ const GridManager = () => {
   useEffect(() => {
     if (deploymentContracts.gridManager) {
       refetch();
+      reexecuteQuery({ requestPolicy: "network-only", url: `https://gateway.thegraph.com/api/subgraphs/id/${deploymentContracts.gridManagerSubgraphId}`, });
       setOpenGrids([]);
       setExitedGrids([]);
     }
-  }, [deploymentContracts.gridManager, refetch, chainId]);
+  }, [deploymentContracts.gridManager, deploymentContracts.gridManagerSubgraphId, reexecuteQuery, refetch]);
 
   const upgradeTo = async () => {
     if (!newImplementation) {
@@ -524,7 +561,7 @@ const GridManager = () => {
                     </a>
                   )}
                   <div>
-                    <Button className="mb-2" onClick={toggleDisplayToken}>
+                    <Button type="Button" className="mb-2" onClick={toggleDisplayToken}>
                       Toggle Price
                       <ArrowsRightLeftIcon className="h-4 w-4 inline-block ml-1" />
                     </Button>
@@ -558,7 +595,6 @@ const GridManager = () => {
                 {[1, 3, 5, 10].map((percentage) => (
                   <Button
                     key={percentage}
-                    type="Button"
                     buttonStyle="primary"
                     onClick={() => calculatePricePercentage(percentage)}
                   >

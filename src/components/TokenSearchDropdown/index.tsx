@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useQuery } from "urql";
+import { gql, useQuery } from "urql";
 
-const QUERY = `query Tokens($symbol:String) {
+const QUERY = gql`query Tokens($symbol:String) {
     tokens(orderBy:totalValueLockedUSD, orderDirection: desc, where:{
         symbol_contains_nocase: $symbol,
         totalValueLockedUSD_gt: 0

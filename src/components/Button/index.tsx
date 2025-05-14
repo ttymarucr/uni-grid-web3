@@ -9,7 +9,7 @@ interface ButtonProps {
 }
 
 const Button: React.FC<ButtonProps> = ({
-  buttonStyle: type = "base",
+  buttonStyle = "base",
   onClick,
   children,
   className = "",
@@ -22,9 +22,9 @@ const Button: React.FC<ButtonProps> = ({
   const secondaryStyles = "bg-blue-500 text-white hover:bg-blue-600";
 
   const buttonStyles =
-    type === "base"
+    buttonStyle === "base"
       ? baseStyles
-      : type === "secondary"
+      : buttonStyle === "secondary"
       ? secondaryStyles
       : primaryStyles;
 

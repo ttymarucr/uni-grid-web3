@@ -4,6 +4,7 @@
         "uniswapV3PositionManager": "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
         "uniswapV3Factory": "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
         "subgraphId": "43Hwfi3dJSoGpyas9VwNoDAv55yjgGrPpNSmbQZArzMG",
+        "gridManagerSubgraphId": "9D2Vh46VahuN7TMWNpzyWoXMhCPpqjnBeS532y3pBNMS",
         "uniswapChain": "base"
     },
     "42161": {
@@ -11,6 +12,7 @@
         "uniswapV3PositionManager": "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
         "uniswapV3Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
         "subgraphId": "FbCGRftH4a3yZugY7TnbYgPJVEv2LvMT6oF1fxPe9aJM",
+        "gridManagerSubgraphId": "BjyZvGki2Ckf3RaMHTBCRbSuRqoPCMxGn1APyKKRKgWs",
         "uniswapChain": "arbitrum"
     }
 }

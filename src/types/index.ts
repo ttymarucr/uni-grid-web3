@@ -76,6 +76,7 @@ export interface DeploymentConfig {
   uniswapV3PositionManager: `0x${string}`;
   uniswapV3Factory: `0x${string}`;
   subgraphId: string;
+  gridManagerSubgraphId: string;
   uniswapChain: string;
 }
 

@@ -184,6 +184,7 @@ const ManagePositions: React.FC = () => {
             "event Withdraw(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
             "event Compound(address indexed owner, uint256 token0Amount, uint256 token1Amount)",
           ]),
+          // historical data is limited per node service
           fromBlock: BigInt(block.number) - 500n,
         });
 
@@ -1179,8 +1180,8 @@ const ManagePositions: React.FC = () => {
               <div>
                 <h3 className="font-semibold text-lg mb-2">Sweep</h3>
                 <p className="text-sm font-bold text-gray-900/60 mb-4">
-                  Remove liquidity from positions outside the price range and
-                  redeposit tokens.
+                  Remove liquidity from active positions and redeposit tokens
+                  within the range based on the current price.
                 </p>
               </div>
               <div className=" flex flex-col justify-between">
