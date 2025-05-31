@@ -30,6 +30,7 @@ import {
   parseAbi,
   BaseError,
   ContractFunctionRevertedError,
+  ContractFunctionExecutionError,
 } from "viem";
 import { useChainId } from "wagmi";
 import { ArrowPathIcon, ChevronLeftIcon } from "@heroicons/react/24/outline";
@@ -520,24 +521,28 @@ const ManagePositions: React.FC = () => {
           account: address as `0x${string}`,
         });
       } catch (err) {
-        if (err instanceof BaseError) {
-          const revertError = err.walk(
-            (err) => err instanceof ContractFunctionRevertedError
-          );
-          if (revertError instanceof ContractFunctionRevertedError) {
-            const errorName = revertError.data?.args?.[0] ?? "";
-            const message = ErrorCodeMessages[errorName];
-            if (message) {
-              toast.error(`Error: ${message}`);
+        if (err instanceof ContractFunctionExecutionError) {
+          console.error("Simulation error:", err);
+        } else {
+          if (err instanceof BaseError) {
+            const revertError = err.walk(
+              (err) => err instanceof ContractFunctionRevertedError
+            );
+            if (revertError instanceof ContractFunctionRevertedError) {
+              const errorName = revertError.data?.args?.[0] ?? "";
+              const message = ErrorCodeMessages[errorName];
+              if (message) {
+                toast.error(`Error: ${message}`);
+              } else {
+                toast.error(`Error: ${errorName}`);
+              }
             } else {
-              toast.error(`Error: ${errorName}`);
+              toast.error("Error: " + err.message);
+              console.error("Error:", err);
             }
-          } else {
-            toast.error("Error: " + err.message);
-            console.error("Error:", err);
           }
+          return;
         }
-        return;
       }
       const eGas = await estimateGas(config, {
         address: contractAddress as `0x${string}`,
