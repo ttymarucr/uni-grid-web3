@@ -594,6 +594,7 @@ const GridManager = () => {
               <div className="flex space-x-2">
                 {[1, 3, 5, 10].map((percentage) => (
                   <Button
+                    type="Button"
                     key={percentage}
                     buttonStyle="primary"
                     onClick={() => calculatePricePercentage(percentage)}
